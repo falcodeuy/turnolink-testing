@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Playwright artifacts
+artifacts/test-results/
+artifacts/playwright-report/
+artifacts/blob-report/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+*.swp

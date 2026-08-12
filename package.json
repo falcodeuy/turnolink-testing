@@ -1,0 +1,26 @@
+{
+  "name": "turnolink-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end tests for TurnoLink (Playwright)",
+  "scripts": {
+    "check-env": "node scripts/check-env.mjs",
+    "test": "npm run check-env && playwright test",
+    "test:smoke": "npm run check-env && playwright test --grep @smoke",
+    "test:local": "TARGET_ENV=local npm run test",
+    "test:staging": "TARGET_ENV=staging npm run test",
+    "test:production": "TARGET_ENV=production playwright test tests/production",
+    "test:headed": "npm run check-env && playwright test --headed",
+    "test:ui": "npm run check-env && playwright test --ui",
+    "test:debug": "npm run check-env && playwright test --debug",
+    "report": "playwright show-report artifacts/playwright-report",
+    "codegen:public": "playwright codegen ${PUBLIC_WEB_URL:-http://localhost:3000}",
+    "codegen:professional": "playwright codegen ${PROFESSIONAL_WEB_URL:-http://localhost:3001}"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^20.19.0",
+    "dotenv": "^16.6.1",
+    "typescript": "^5.9.2"
+  }
+}
