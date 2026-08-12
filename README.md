@@ -1,159 +1,282 @@
 # TurnoLink E2E
 
-Suite de tests end-to-end de TurnoLink con [Playwright](https://playwright.dev/).
+End-to-end test suite for TurnoLink, powered by [Playwright](https://playwright.dev/).
 
-Este repositorio es **independiente** del backend y de los frontends. No duplica lógica de negocio de Django ni hostea Playwright dentro de las apps Next.
+This repository is **independent** from the Django backend and the Next.js frontends. It does not reimplement business rules and does not host Playwright inside those apps.
 
-## Qué es / qué no es
+## Scope
 
-| Sí | No |
-|----|----|
-| Journeys UI + API entre apps | Unit tests (viven en cada proyecto) |
-| Smoke y regresiones cross-frontend | Reimplementar reglas de disponibilidad/reservas |
-| Artifacts de fallo (trace, video, screenshot) | Orquestar Docker/compose del stack (todavía) |
+| In scope | Out of scope |
+|----------|--------------|
+| UI + API journeys across apps | Unit / integration tests (live in each product repo) |
+| Smoke checks and cross-frontend regressions | Duplicating availability / booking domain logic |
+| Failure artifacts (trace, video, screenshot) | Orchestrating Docker Compose for the full stack (not yet) |
 
-## Mapa de estructura
+## Mental model
+
+Think of the suite as layers. Prefer the cheapest layer that still proves the behavior you care about.
+
+| Layer | Directory / module | Purpose |
+|-------|--------------------|---------|
+| Smoke | `tests/smoke/` | Is the app reachable and rendering a basic page? |
+| Auth | `tests/auth/` + `npm run seed` | Can we authenticate? Seed creates the dedicated E2E owner/company. |
+| Journeys | `tests/journeys/` | Does a full business flow work across apps? (book → panel → delete) |
+| Production | `tests/production/` | Read-only checks against live production (no writes) |
+
+Supporting code:
+
+| Module | Role |
+|--------|------|
+| `src/apps.ts` | Typed URLs for public web, professional web, and API |
+| `src/env.ts` | Load and validate environment variables |
+| `src/safety.ts` | Environment / production-write guards |
+| `src/api/` | Thin HTTP client against Django (transport only; no domain logic) |
+| `src/professionalAuth.ts` | Professional session helpers: UI login or API login + `user` cookie |
+| `src/booking.ts` | Public booking funnel helpers |
+| `src/appointments.ts` | Professional Reservas helpers (find / delete) |
+| `fixtures/` | Shared Playwright fixtures (auth contexts, multi-page setups) when needed |
+| `scripts/` | CLI helpers (`check-env`, Django `e2e_seed` / `e2e_reset` wrappers) |
+| `artifacts/` | Traces, videos, screenshots, HTML report (gitignored) |
+
+**How Playwright fits:** Node runs `@playwright/test`, which drives Chromium against the URLs in `.env`. Cookies and storage live on the browser **context**; a `page` is one tab inside that context. Django and Next must already be running locally — this repo does not start them yet.
 
 ```text
-turnolink-e2e/
+turnolink-testing (Node / Playwright)
+        │
+        ├─► browser ──► turnolink-web                 (PUBLIC_WEB_URL)
+        ├─► browser ──► turnolink-professional-web    (PROFESSIONAL_WEB_URL)
+        └─► HTTP    ──► turnolink-backend API         (API_BASE_URL)
+```
+
+For multi-frontend journeys, open a second `page` / `context` and navigate with `apps.professional()` (absolute URL). Playwright `baseURL` points only at the public web.
+
+## Repository layout
+
+```text
+turnolink-testing/
 ├── tests/
-│   ├── smoke/           # checks rápidos: “¿carga la app?”
-│   ├── journeys/        # flujos multi-app (reserva → panel → cancel)
-│   └── production/      # suite read-only de producción (aislada)
+│   ├── smoke/                 # app reachability
+│   ├── auth/                  # professional UI + API login
+│   ├── journeys/              # cross-app business flows
+│   └── production/            # production read-only suite
 ├── src/
-│   ├── env.ts           # carga/valida variables de entorno
-│   ├── apps.ts          # URLs tipadas: public / professional / api
-│   └── safety.ts        # guards de TARGET_ENV y writes en prod
-├── fixtures/            # fixtures Playwright custom (auth, multi-page)
-├── scripts/             # CLI auxiliares (check-env; luego wrappers de seed)
-├── artifacts/           # traces, videos, screenshots, HTML report (gitignored)
+│   ├── env.ts
+│   ├── apps.ts
+│   ├── safety.ts
+│   ├── professionalAuth.ts
+│   ├── booking.ts
+│   ├── appointments.ts
+│   └── api/
+├── fixtures/
+├── scripts/
+├── artifacts/
 ├── playwright.config.ts
 ├── .env.example
 └── package.json
 ```
 
-### ¿Dónde pongo X?
+### Where to put new work
 
-| Quiero… | Va en… |
-|---------|--------|
-| Un smoke de que algo carga | `tests/smoke/` |
-| Un journey cliente + negocio | `tests/journeys/` |
-| Un check solo de producción (read-only) | `tests/production/` |
-| Helper de navegación / API / env | `src/` |
-| Fixture de browser o contexto autenticado | `fixtures/` |
-| Script que invoque Django (`e2e_seed`, etc.) | `scripts/` + `BACKEND_ROOT` + venv del backend |
-| Credenciales / URLs locales | `.env` (copiado desde `.env.example`) |
+| I want to… | Put it in… |
+|------------|------------|
+| Add a “does it load?” check | `tests/smoke/` |
+| Cover professional login / session | `tests/auth/` + `src/professionalAuth.ts` |
+| Cover a client + business journey | `tests/journeys/` + `src/booking.ts` / `src/appointments.ts` |
+| Add a production-only read-only check | `tests/production/` |
+| Add navigation / env / safety helpers | `src/` |
+| Call Django over HTTP | `src/api/` |
+| Add a reusable browser fixture | `fixtures/` |
+| Invoke Django seed/reset commands | `npm run seed` / `npm run reset` (uses `BACKEND_ROOT` + backend `venv`) |
+| Configure local URLs / credentials | `.env` (from `.env.example`) |
 
-## Cómo funciona Playwright aquí
+## Backend and the existing venv
 
-1. **Node/npm** dentro de este repo instala `@playwright/test` y el browser Chromium.
-2. Los tests abren el browser y navegan a las URLs de `.env` (`PUBLIC_WEB_URL`, etc.).
-3. Playwright **no levanta** Django ni Next: en local el stack debe estar corriendo antes.
-4. Ante un fallo se guardan trace, screenshot y video en `artifacts/`. Ver reporte: `npm run report`.
-
-```text
-turnolink-e2e (Node/Playwright)
-        │
-        ├─► browser ──► turnolink-web          (PUBLIC_WEB_URL)
-        ├─► browser ──► turnolink-professional-web (PROFESSIONAL_WEB_URL)
-        └─► HTTP    ──► turnolink-backend API  (API_BASE_URL)
-```
-
-Para journeys futuros con dos frontends, abrí un segundo `page`/`context` y usá `apps.professional()` (URL absoluta). El `baseURL` de Playwright apunta solo a la web pública.
-
-## Backend y el venv existente
-
-Playwright es Node. Los comandos de dominio (seed/reset) **viven en Django** y deben usar el environment ya creado en el backend:
+Playwright is Node. Domain commands (seed / reset) belong in Django and must use the **existing** backend virtualenv:
 
 ```bash
-# Ejemplo futuro (aún no implementado en milestone 1)
-"$BACKEND_ROOT/venv/bin/python" "$BACKEND_ROOT/manage.py" e2e_seed
+# From turnolink-testing (preferred)
+npm run seed
+npm run reset
+
+# Equivalent, from turnolink-backend
+./venv/bin/python manage.py e2e_seed
+./venv/bin/python manage.py e2e_reset
+./venv/bin/python manage.py e2e_seed --json
 ```
 
-- `BACKEND_ROOT` por defecto: `../turnolink-backend`
-- **No** crear un `venv` dentro de `turnolink-e2e`
-- **No** instalar paquetes Python desde este repo sin aprobación explícita
+What `e2e_seed` creates (idempotent):
+
+- Company `turnolink-e2e` (active, public slug, auto-confirm bookings)
+- Owner user `e2e-owner@turnolink.local` / `e2e-owner-pass-123` (`onboarding_ready=True`)
+- Branch, category, service, 30‑min variant
+- Company hours Mon–Sat 09:00–18:00
+
+What `e2e_reset` does:
+
+- Deletes schedules and clients for that company
+- Keeps the company skeleton (re-run `seed` anytime)
+
+Guards: blocked when `DJANGO_ENV=production` unless `E2E_TOOLS_ENABLED=true`.
+
+- Default `BACKEND_ROOT`: `../turnolink-backend`
+- Do **not** create a Python `venv` inside `turnolink-testing`
+- Do **not** install Python packages from this repo without explicit approval
 
 ## Ownership
 
-| Repo | Responsabilidad |
-|------|-----------------|
-| `turnolink-e2e` | Specs, config Playwright, helpers env/apps/safety, artifacts, scripts npm |
-| `turnolink-backend` | Seed/reset E2E, reglas de dominio, endpoints E2E gated (futuro), vía su `venv` |
-| `turnolink-web` / `turnolink-professional-web` | UI estable, roles/labels/`data-testid` cuando haga falta |
+| Repository | Responsibility |
+|------------|----------------|
+| `turnolink-testing` | Specs, Playwright config, env/apps/safety helpers, artifacts, npm scripts |
+| `turnolink-backend` | E2E seed/reset, domain rules, gated E2E endpoints (future), via its `venv` |
+| `turnolink-web` / `turnolink-professional-web` | Stable UI, accessible roles/labels, `data-testid` when needed |
 
-## Ambientes
+## Environments
 
-| Env | Writes | Qué corre |
+| Env | Writes | What runs |
 |-----|--------|-----------|
-| `local` | Sí | smoke + journeys |
-| `staging` | Sí, tenant E2E dedicado | smoke + journeys |
-| `production` | No por defecto | solo `tests/production` |
+| `local` | Yes | smoke + auth + journeys |
+| `staging` | Reserved (no staging env yet) | — |
+| `production` | **No** (read-only suite) | `tests/production` only |
 
-Writes en producción (futuro) requieren **todo** esto:
+### Production (read-only)
 
-- `TARGET_ENV=production`
-- `ALLOW_PRODUCTION_WRITES=true`
-- `E2E_ALLOWED_COMPANY_SLUG` = tenant E2E permitido
-- Verificación en `src/safety.ts` de que el recurso pertenece a ese tenant
-
-## Setup rápido (local)
-
-Precondiciones:
-
-- `turnolink-web` en `http://localhost:3000` (convención E2E)
-- (Más adelante) professional en `:3001`, API en `:8000`
+Hits live production URLs. **Never books, logs in, seeds, or deletes.**
 
 ```bash
-cd turnolink-e2e
-cp .env.example .env
-npm install
-npx playwright install chromium
-npm run test:smoke
+cp .env.production.example .env.production
+# defaults: turnolink.app / admin.turnolink.app / api.turnolink.app
+npm run test:production
 ```
 
-## Scripts npm
+Safety rails:
 
-| Script | Qué hace |
-|--------|----------|
-| `npm run check-env` | Valida `.env` y URLs |
-| `npm test` | Toda la suite (excepto aislamiento prod vía script dedicado) |
-| `npm run test:smoke` | Solo tests `@smoke` |
+- `TARGET_ENV=production` forces Playwright `testMatch` to `tests/production/**` only
+- `ALLOW_PRODUCTION_WRITES` must stay `false` for this suite
+- Localhost URLs are rejected
+- `npm run seed` / `reset`, booking, and professional login helpers refuse production
+- Future controlled writes will still need `ALLOW_PRODUCTION_WRITES=true` + `E2E_ALLOWED_COMPANY_SLUG` + tenant checks in `src/safety.ts`
+
+## Local setup
+
+Port convention:
+
+- `turnolink-web` → `http://localhost:3000`
+- `turnolink-professional-web` → `http://localhost:3001`
+- Django API → `http://localhost:8000` (required for `@auth`)
+
+```bash
+# Terminal 1 — public web
+cd turnolink-web && npm run dev
+
+# Terminal 2 — professional panel (port 3001 to avoid clashing with :3000)
+cd turnolink-professional-web && npm run dev -- -p 3001
+
+# Terminal 3 — Django API (required for @auth)
+cd turnolink-backend
+# start the server using the existing venv, as you normally do
+
+# Terminal 4 — tests
+cd turnolink-testing
+cp .env.example .env   # first time only
+npm install
+npx playwright install chromium
+npm run seed           # creates E2E company + owner (Django venv)
+npm run test:smoke
+npm run test:auth      # uses seeded e2e-owner credentials by default
+npm run test:journeys  # book on public web → see/delete in panel
+```
+
+### Watching what the browser did (including passed tests)
+
+By default `E2E_VIDEO=on`, so Playwright keeps a **video for every test**, pass or fail.
+
+After a run:
+
+```bash
+npm run report
+# opens artifacts/playwright-report — click a test → video attachment
+
+# Or open a video file directly:
+# artifacts/test-results/<test-name>/video.webm
+# Journeys that open custom browser contexts also write:
+# artifacts/test-results/*.webm
+```
+
+**Note:** `use.video` in Playwright config only applies to the default test context. Cross-app journeys use `newRecordedContext()` (`src/browser.ts`) so public + professional tabs are recorded too. Close those contexts at the end of the test so videos are flushed to disk.
+
+Other useful artifacts:
+
+| Artifact | When kept | How to open |
+|----------|-----------|-------------|
+| Video (`.webm`) | Always (`E2E_VIDEO=on`) | HTML report or file path above |
+| Trace | On failure | `npx playwright show-trace artifacts/test-results/.../trace.zip` |
+| Screenshot | On failure | Inside the same test-results folder |
+
+To save disk space: set `E2E_VIDEO=retain-on-failure` or `off` in `.env`.
+
+## npm scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run check-env` | Validate `.env` and required URLs |
+| `npm test` | Full suite (use `test:production` for prod isolation) |
+| `npm run test:smoke` | `@smoke` only |
+| `npm run test:auth` | `@auth` only (needs credentials + API) |
+| `npm run test:journeys` | `@journey` only (needs seed + both frontends + API) |
+| `npm run seed` | `manage.py e2e_seed` via backend `venv` |
+| `npm run reset` | `manage.py e2e_reset` via backend `venv` |
 | `npm run test:local` | `TARGET_ENV=local` |
-| `npm run test:staging` | `TARGET_ENV=staging` |
-| `npm run test:production` | Solo `tests/production` con `TARGET_ENV=production` |
-| `npm run test:headed` | Browser visible |
-| `npm run test:ui` | UI mode de Playwright |
+| `npm run test:production` | Read-only production suite (`tests/production`) |
+| `npm run test:headed` | Visible browser |
+| `npm run test:ui` | Playwright UI mode |
 | `npm run test:debug` | Debug mode |
-| `npm run report` | Abre el HTML report de artifacts |
-| `npm run codegen:public` | Codegen contra la web pública |
-| `npm run codegen:professional` | Codegen contra el panel |
+| `npm run report` | Open HTML report under `artifacts/` |
+| `npm run codegen:public` | Codegen against the public web |
+| `npm run codegen:professional` | Codegen against the professional panel |
 
-## Variables de entorno
+## Environment variables
 
-Ver [`.env.example`](.env.example). Mínimo para smoke local:
+See [`.env.example`](.env.example).
+
+Minimum for local smoke:
 
 - `TARGET_ENV=local`
 - `PUBLIC_WEB_URL`
 - `PROFESSIONAL_WEB_URL`
 
+Additional for `@auth`:
+
+- `API_BASE_URL` (Django running)
+- `E2E_PROFESSIONAL_EMAIL` (default matches `e2e_seed`)
+- `E2E_PROFESSIONAL_PASSWORD` (default matches `e2e_seed`)
+
+Prefer `npm run seed` so credentials and the public company exist. `@auth` tests are skipped when those credentials are missing.
+
+### Session helpers
+
+- `loginProfessionalViaUi(page)` — fills the login form (use when testing login itself).
+- `loginProfessionalViaApi(page)` — `POST /login/` then injects the `user` cookie (fast setup for later journeys).
+- `bookAppointmentOnPublicWeb(page, …)` — public funnel through confirm.
+- `expectAppointmentInProfessionalPanel(page, clientName)` / `deleteAppointmentFromProfessionalPanel(page, clientName)`.
+
 ## Roadmap
 
-1. ~~Scaffold Playwright + smoke público~~ (milestone actual)
-2. Smoke del panel professional
-3. Auth local + helper API
-4. `e2e_seed` / `e2e_reset` en Django vía `BACKEND_ROOT` + `venv`
-5. Primer journey cross-app (reserva → panel → cancel)
-6. Staging + tenant E2E
-7. Production read-only
-8. Integraciones (Mercado Pago sandbox, Calendar, OAuth) una a una
+1. ~~Playwright scaffold + public smoke~~
+2. ~~Professional panel smoke~~
+3. ~~Local auth + API helper~~
+4. ~~Django `e2e_seed` / `e2e_reset` via `BACKEND_ROOT` + `venv`~~
+5. ~~First cross-app journey (book → panel → delete)~~
+6. Staging + dedicated E2E tenant — **skipped for now** (no staging environment)
+7. ~~Production read-only suite~~ (current milestone)
+8. External integrations (Mercado Pago sandbox, Calendar, OAuth), one at a time
 9. CI
-10. Exploratorio con agentes (Hermes / OpenRouter / Playwright MCP) — capa aparte
+10. Exploratory agents (Hermes / OpenRouter / Playwright MCP) as a separate layer
+11. Future: controlled production writes against a dedicated `TurnoLink E2E Production` tenant
 
 ## Locators
 
-Preferí locators robustos:
+Prefer resilient locators:
 
-- `getByRole`, `getByLabel`, `getByText` (accesibles)
-- `getByTestId` cuando la UI no sea estable por rol/label
-- Evitar selectores CSS frágiles (`.MuiButton-root:nth-child(2)`, etc.)
+- `getByRole`, `getByLabel`, `getByText` (accessible)
+- `getByTestId` when role/label is not stable or not associated correctly
+- Avoid brittle CSS (e.g. `.MuiButton-root:nth-child(2)`)

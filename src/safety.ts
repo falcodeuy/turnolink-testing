@@ -21,6 +21,37 @@ export function assertProductionSuitePath(testFilePath: string): void {
 }
 
 /**
+ * Production suite is strictly read-only for now.
+ * No login-as-write, no booking, no seed/reset.
+ */
+export function assertProductionReadOnly(): void {
+  if (env.targetEnv !== 'production') {
+    return;
+  }
+
+  if (env.allowProductionWrites) {
+    throw new Error(
+      'Production read-only suite requires ALLOW_PRODUCTION_WRITES=false. ' +
+        'Controlled production writes are not enabled yet.',
+    );
+  }
+}
+
+/**
+ * Block any mutating helper when TARGET_ENV=production (until explicit write phase).
+ */
+export function assertNotProductionWriteContext(action: string): void {
+  if (env.targetEnv !== 'production') {
+    return;
+  }
+
+  throw new Error(
+    `Refusing to ${action} while TARGET_ENV=production. ` +
+      'The production suite is read-only. Use local for journeys/seed/auth writes.',
+  );
+}
+
+/**
  * Future write helpers must call this before mutating production data.
  */
 export function assertProductionWriteAllowed(companySlug: string): void {

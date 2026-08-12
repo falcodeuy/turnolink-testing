@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+/**
+ * Invoke Django E2E management commands using the backend's existing venv.
+ * Usage: node scripts/django-e2e.mjs seed|reset [-- ...manage.py args]
+ */
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { config as loadDotenv } from 'dotenv';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '..');
+loadDotenv({ path: path.join(root, '.env') });
+
+const action = process.argv[2];
+const passthrough = process.argv.slice(3);
+
+if (!['seed', 'reset'].includes(action)) {
+  console.error('Usage: node scripts/django-e2e.mjs <seed|reset> [-- manage.py args]');
+  process.exit(1);
+}
+
+if ((process.env.TARGET_ENV ?? 'local').trim() === 'production') {
+  console.error(
+    'Refusing to run e2e_seed/e2e_reset while TARGET_ENV=production. Use local only.',
+  );
+  process.exit(1);
+}
+
+const backendRoot = path.resolve(root, process.env.BACKEND_ROOT || '../turnolink-backend');
+const python = path.join(backendRoot, 'venv', 'bin', 'python');
+const managePy = path.join(backendRoot, 'manage.py');
+
+if (!fs.existsSync(python)) {
+  console.error(`Backend venv python not found: ${python}`);
+  console.error('Use the existing turnolink-backend/venv — do not create a new one here.');
+  process.exit(1);
+}
+
+if (!fs.existsSync(managePy)) {
+  console.error(`manage.py not found: ${managePy}`);
+  process.exit(1);
+}
+
+const commandName = action === 'seed' ? 'e2e_seed' : 'e2e_reset';
+const args = [managePy, commandName, ...passthrough];
+
+console.log(`Running: ${python} ${args.join(' ')}`);
+const result = spawnSync(python, args, {
+  cwd: backendRoot,
+  stdio: 'inherit',
+  env: process.env,
+});
+
+process.exit(result.status ?? 1);
