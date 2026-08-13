@@ -225,6 +225,8 @@ To save disk space: set `E2E_VIDEO=retain-on-failure` or `off` in `.env`.
 | `npm run test:journeys` | `@journey` only (needs seed + both frontends + API) |
 | `npm run seed` | `manage.py e2e_seed` via backend `venv` |
 | `npm run reset` | `manage.py e2e_reset` via backend `venv` |
+| `npm run calendar:status` | Check if E2E owner has Google Calendar connected |
+| `npm run test:calendar` | `@calendar` journey (booking → event in Google) |
 | `npm run test:local` | `TARGET_ENV=local` |
 | `npm run test:production` | Read-only production suite (`tests/production`) |
 | `npm run test:headed` | Visible browser |
@@ -258,6 +260,20 @@ Prefer `npm run seed` so credentials and the public company exist. `@auth` tests
 - `loginProfessionalViaApi(page)` — `POST /login/` then injects the `user` cookie (fast setup for later journeys).
 - `bookAppointmentOnPublicWeb(page, …)` — public funnel through confirm.
 - `expectAppointmentInProfessionalPanel(page, clientName)` / `deleteAppointmentFromProfessionalPanel(page, clientName)`.
+- `assertE2eCalendarConnected()` / `verifyBookingInGoogleCalendar(clientName)` — Google Calendar assertions via Django.
+
+### Google Calendar integration (local)
+
+We **do not** automate Google’s OAuth screens in Playwright (brittle / often blocked). Instead:
+
+1. Seed the E2E tenant: `npm run seed`
+2. Ensure backend `.env` has `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (Calendar OAuth client)
+3. Start professional web + API, log in as `e2e-owner@turnolink.local`
+4. Connect **Google Calendar** once in the panel (your Google account / a dedicated test account)
+5. Check: `npm run calendar:status` → should say connected
+6. Run: `npm run test:calendar`
+
+The test books on the public web, then Django polls until `Schedule.google_event_id` is set and **GETs the event from Google Calendar API** using the stored refresh token. You can open the returned `html_link` (or your Google Calendar UI) to see the event.
 
 ## Roadmap
 
@@ -267,11 +283,12 @@ Prefer `npm run seed` so credentials and the public company exist. `@auth` tests
 4. ~~Django `e2e_seed` / `e2e_reset` via `BACKEND_ROOT` + `venv`~~
 5. ~~First cross-app journey (book → panel → delete)~~
 6. Staging + dedicated E2E tenant — **skipped for now** (no staging environment)
-7. ~~Production read-only suite~~ (current milestone)
-8. External integrations (Mercado Pago sandbox, Calendar, OAuth), one at a time
-9. CI
-10. Exploratory agents (Hermes / OpenRouter / Playwright MCP) as a separate layer
-11. Future: controlled production writes against a dedicated `TurnoLink E2E Production` tenant
+7. ~~Production read-only suite~~
+8. ~~Google Calendar verification (connect once + API assert)~~ (current)
+9. External integrations continued (Mercado Pago sandbox, Google OAuth login), one at a time
+10. CI — deferred
+11. Exploratory agents (Hermes / OpenRouter / Playwright MCP) as a separate layer
+12. Future: controlled production writes against a dedicated `TurnoLink E2E Production` tenant
 
 ## Locators
 

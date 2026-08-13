@@ -11,6 +11,8 @@
     "test:journeys": "npm run check-env && playwright test --grep @journey",
     "seed": "node scripts/django-e2e.mjs seed",
     "reset": "node scripts/django-e2e.mjs reset",
+    "calendar:status": "node scripts/django-e2e.mjs calendar-status",
+    "test:calendar": "npm run check-env && playwright test --grep @calendar",
     "test:local": "TARGET_ENV=local npm run test",
     "test:production": "TARGET_ENV=production npm run check-env && TARGET_ENV=production playwright test tests/production",
     "test:headed": "npm run check-env && playwright test --headed",
