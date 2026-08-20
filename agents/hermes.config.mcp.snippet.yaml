@@ -1,0 +1,14 @@
+# Add this under the existing mcp_servers: key in Hermes config.yaml
+# Host path (your Ubuntu box): /home/ubuntu/.hermes/config.yaml
+# Inside the container that is: /opt/data/config.yaml
+#
+# Playwright MCP runs on the Mac, not inside this container.
+# Use the Mac LAN IP — never localhost (that would be the Hermes container).
+# If curl returns 403, restart npm run mcp:hermes with --allowed-hosts including 192.168.1.9:8931
+
+mcp_servers:
+  playwright:
+    url: "http://192.168.1.9:8931/mcp"
+    enabled: true
+    timeout: 180
+    connect_timeout: 60

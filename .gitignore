@@ -15,6 +15,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+.playwright-cli/
 
 # OS / editor
 .DS_Store

@@ -40,6 +40,8 @@ Supporting code:
 
 **How Playwright fits:** Node runs `@playwright/test`, which drives Chromium against the URLs in `.env`. Cookies and storage live on the browser **context**; a `page` is one tab inside that context. Django and Next must already be running locally — this repo does not start them yet.
 
+**Playwright CLI** (`npx playwright cli`) is for Cursor while writing tests: snapshots go to `.playwright-cli/` on disk instead of filling the model context. Hermes still uses MCP. Specs in `tests/` remain the source of truth.
+
 ```text
 turnolink-testing (Node / Playwright)
         │
@@ -235,6 +237,10 @@ To save disk space: set `E2E_VIDEO=retain-on-failure` or `off` in `.env`.
 | `npm run report` | Open HTML report under `artifacts/` |
 | `npm run codegen:public` | Codegen against the public web |
 | `npm run codegen:professional` | Codegen against the professional panel |
+| `npm run cli` | Playwright CLI for coding agents (`npx playwright cli …`) |
+| `npm run cli:public` | Headed CLI session against the public web |
+| `npm run cli:professional` | Headed CLI session against the professional panel |
+| `npm run mcp:hermes` | Playwright MCP HTTP server for Hermes (`0.0.0.0:8931`) |
 
 ## Environment variables
 
@@ -287,8 +293,87 @@ The test books on the public web, then Django polls until `Schedule.google_event
 8. ~~Google Calendar verification (connect once + API assert)~~ (current)
 9. External integrations continued (Mercado Pago sandbox, Google OAuth login), one at a time
 10. CI — deferred
-11. Exploratory agents (Hermes / OpenRouter / Playwright MCP) as a separate layer
-12. Future: controlled production writes against a dedicated `TurnoLink E2E Production` tenant
+11. ~~Exploratory agents (Hermes + Playwright MCP on LAN)~~ — see below
+12. ~~Playwright CLI for Cursor (write journeys without dumping page trees into chat)~~ — see below
+13. Future: controlled production writes against a dedicated `TurnoLink E2E Production` tenant
+
+## Playwright CLI (Cursor)
+
+Use this when adding journeys. The agent drives the local apps, then converts locators into a spec that reuses `src/` helpers.
+
+```bash
+cd turnolink-testing
+# stack must already be running on :3000 / :3001 / :8000
+npx playwright cli -s=public open http://localhost:3000 --headed
+npx playwright cli -s=public snapshot
+npx playwright cli -s=public find "Ingresar"
+```
+
+Or `npm run cli:public` / `npm run cli:professional`. Skills live in `.agents/skills/` (plus the workspace Cursor skill `turnolink-e2e`). Snapshots are gitignored under `.playwright-cli/`.
+
+Do not use the CLI against production. Do not replace `npm test` with CLI sessions.
+
+## Exploratory AI (Hermes + Playwright MCP)
+
+Deterministic Playwright specs stay in `tests/`. Hermes is a **separate** layer: OpenRouter thinks, Playwright MCP drives a browser on this Mac.
+
+Same LAN setup (this Mac ≈ `192.168.1.9`):
+
+1. Stack running locally (`:3000`, `:3001`, `:8000`) and `npm run seed` if you want the E2E tenant.
+2. On this Mac, start the MCP server (leave the terminal open):
+
+```bash
+cd turnolink-testing
+npm run mcp:hermes
+```
+
+The MCP server validates the HTTP `Host` header. A `403 Forbidden` from Ubuntu means it is reachable but the LAN IP is not allowlisted. `npm run mcp:hermes` already passes `--allowed-hosts 192.168.1.9:8931,...`. If your Mac IP changes, update that flag (or, LAN-only, `--allowed-hosts '*'`).
+
+3. From the **Ubuntu host** (and optionally from inside the Hermes container), check reachability:
+
+```bash
+curl -sI http://192.168.1.9:8931/mcp
+docker exec hermes curl -sI http://192.168.1.9:8931/mcp
+```
+
+If the host works but the container does not, the Mac firewall or Docker networking is blocking it. Allow incoming TCP **8931** on the Mac.
+
+4. Hermes does **not** take MCP config in `docker-compose.yml`. Edit the volume file on the Ubuntu box:
+
+`/home/ubuntu/.hermes/config.yaml`
+
+Add (or merge into existing `mcp_servers`):
+
+```yaml
+mcp_servers:
+  playwright:
+    url: "http://192.168.1.9:8931/mcp"
+    enabled: true
+    timeout: 180
+    connect_timeout: 60
+```
+
+Snippet: [`agents/hermes.config.mcp.snippet.yaml`](agents/hermes.config.mcp.snippet.yaml).
+
+Use the **Mac LAN IP**, never `localhost` / `127.0.0.1` (inside the container that is Hermes itself). If the Mac IP changes: `ipconfig getifaddr en0`.
+
+5. Restart the gateway (or `/reload-mcp` in an active Hermes chat):
+
+```bash
+docker restart hermes
+```
+
+6. Give Hermes two files (or paste both):
+   - [`agents/SKILL-playwright-mcp.md`](agents/SKILL-playwright-mcp.md) — how to call each MCP tool (`target` / `ref`)
+   - [`agents/exploratory-prompt.md`](agents/exploratory-prompt.md) — what to do on TurnoLink
+
+   You can also copy the skill into Hermes `~/.hermes/skills/` if you use native skills.
+
+The browser opens **on the Mac**.
+
+OpenRouter stays as-is. Compose only needs the volume you already have (`/home/ubuntu/.hermes:/opt/data`).
+
+Do **not** expose port 8931 beyond your LAN.
 
 ## Locators
 

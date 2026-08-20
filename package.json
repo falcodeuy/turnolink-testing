@@ -20,7 +20,11 @@
     "test:debug": "npm run check-env && playwright test --debug",
     "report": "playwright show-report artifacts/playwright-report",
     "codegen:public": "playwright codegen ${PUBLIC_WEB_URL:-http://localhost:3000}",
-    "codegen:professional": "playwright codegen ${PROFESSIONAL_WEB_URL:-http://localhost:3001}"
+    "codegen:professional": "playwright codegen ${PROFESSIONAL_WEB_URL:-http://localhost:3001}",
+    "cli": "playwright cli",
+    "cli:public": "playwright cli -s=public open ${PUBLIC_WEB_URL:-http://localhost:3000} --headed",
+    "cli:professional": "playwright cli -s=professional open ${PROFESSIONAL_WEB_URL:-http://localhost:3001} --headed",
+    "mcp:hermes": "npx --yes @playwright/mcp@latest --port 8931 --host 0.0.0.0 --isolated --allowed-hosts 192.168.1.9:8931,192.168.1.9,127.0.0.1,localhost"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
