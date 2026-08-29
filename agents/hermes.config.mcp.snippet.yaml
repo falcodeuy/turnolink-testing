@@ -1,14 +1,14 @@
-# Add this under the existing mcp_servers: key in Hermes config.yaml
-# Host path (your Ubuntu box): /home/ubuntu/.hermes/config.yaml
-# Inside the container that is: /opt/data/config.yaml
+# Add under mcp_servers: in Hermes config.yaml
 #
-# Playwright MCP runs on the Mac, not inside this container.
-# Use the Mac LAN IP — never localhost (that would be the Hermes container).
-# If curl returns 403, restart npm run mcp:hermes with --allowed-hosts including 192.168.1.9:8931
+# Playwright MCP runs on the host that serves the TurnoLink stack
+# (npm run mcp:hermes). Point url at that host’s LAN IP — never localhost
+# from inside a Hermes container (that would be the container itself).
+# Match HERMES_ALLOWED_HOSTS in turnolink-testing/.env (see .env.example).
+# If curl returns 403, the Host header is not allowlisted.
 
 mcp_servers:
   playwright:
-    url: "http://192.168.1.9:8931/mcp"
+    url: "http://HOST_LAN_IP:8931/mcp"
     enabled: true
     timeout: 180
     connect_timeout: 60

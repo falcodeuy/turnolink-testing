@@ -30,7 +30,7 @@ If a tool is missing, say which tools you have and stop.
 
 If `browser_navigate` fails (connection refused): stop and reply exactly:
 
-`Mac apps are down. Human: start :3000 :3001 :8000 and npm run mcp:hermes. Then ping me.`
+`Stack unreachable. Human: start :3000 :3001 :8000 and npm run mcp:hermes on the MCP host. Then ping me.`
 
 ## Part A — happy path (do this first)
 

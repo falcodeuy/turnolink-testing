@@ -47,18 +47,30 @@ export async function bookAppointmentOnPublicWeb(
   ).toBeVisible();
 
   await selectFirstAvailableDay(page);
-  await expect(page.getByText('Selecciona horario')).toBeVisible({
-    timeout: 30_000,
-  });
 
   const firstSlot = page.getByText(/^\d{2}:\d{2}$/).first();
-  await expect(firstSlot).toBeVisible();
+  await expect(firstSlot).toBeVisible({ timeout: 30_000 });
   await firstSlot.click();
 
   const next = page.getByRole('button', { name: 'Siguiente' });
   await expect(next).toBeEnabled();
-  await next.click();
 
+  const preCheckoutResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes('pre-checkout') &&
+      response.request().method() === 'POST',
+    { timeout: 60_000 },
+  );
+  await next.click();
+  const preCheckout = await preCheckoutResponse;
+  if (!preCheckout.ok()) {
+    const body = await preCheckout.text().catch(() => '');
+    throw new Error(
+      `pre-checkout failed (${preCheckout.status()}): ${body.slice(0, 500)}`,
+    );
+  }
+
+  await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
   await expect(page.getByText(/tus datos/i)).toBeVisible();
 
@@ -78,49 +90,84 @@ export async function bookAppointmentOnPublicWeb(
   ).toBeVisible({ timeout: 60_000 });
 }
 
+async function listSelectableDayNumbers(page: Page): Promise<number[]> {
+  return page.evaluate(() => {
+    const nodes = [
+      ...document.querySelectorAll('.MuiTypography-body2'),
+    ].filter((node) => /^\d{1,2}$/.test((node.textContent || '').trim()));
+
+    const days: number[] = [];
+    for (const node of nodes) {
+      if (getComputedStyle(node).textDecorationLine.includes('line-through')) {
+        continue;
+      }
+      const value = Number((node.textContent || '').trim());
+      if (!Number.isNaN(value)) {
+        days.push(value);
+      }
+    }
+    return days;
+  });
+}
+
+async function clickCalendarDay(page: Page, dayNumber: number): Promise<void> {
+  const dayLabel = page
+    .locator('.MuiTypography-body2')
+    .filter({ hasText: new RegExp(`^${dayNumber}$`) });
+
+  // Handler is on the parent Box, not the Typography.
+  const dayCell = dayLabel.locator(
+    'xpath=ancestor::div[contains(@class,"MuiBox-root")][1]',
+  );
+
+  const dayAvailability = page.waitForResponse(
+    (response) =>
+      response.url().includes('day-availability') &&
+      response.request().method() === 'POST' &&
+      response.ok(),
+    { timeout: 60_000 },
+  );
+
+  await dayCell.click();
+  await dayAvailability;
+
+  await expect(
+    page.getByText(new RegExp(`^${dayNumber} de `, 'i')),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Selecciona horario')).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
 async function selectFirstAvailableDay(page: Page): Promise<void> {
   await expect(page.getByText('No disponible')).toBeVisible({
     timeout: 60_000,
   });
 
-  const dayLabels = page.locator('.MuiTypography-body2').filter({
-    hasText: /^\d{1,2}$/,
-  });
+  const todayDay = new Date().getDate();
+  let selectable = await listSelectableDayNumbers(page);
 
-  const count = await dayLabels.count();
-  for (let i = 0; i < count; i += 1) {
-    const day = dayLabels.nth(i);
-    const decoration = await day.evaluate(
-      (node) => getComputedStyle(node).textDecorationLine,
-    );
-    if (decoration.includes('line-through')) {
-      continue;
-    }
-    await day.click();
-    return;
+  // Prefer a day after today — same-day late slots often fail near closing time.
+  let pick =
+    selectable.find((day) => day > todayDay) ??
+    selectable.find((day) => day === todayDay);
+
+  if (pick === undefined) {
+    await page
+      .locator('button')
+      .filter({ has: page.locator('svg') })
+      .last()
+      .click();
+    await expect(page.getByText('No disponible')).toBeVisible({
+      timeout: 30_000,
+    });
+    selectable = await listSelectableDayNumbers(page);
+    pick = selectable[0];
   }
 
-  // Maybe month has no remaining days — go to next month once.
-  await page.locator('button').filter({ has: page.locator('svg') }).last().click();
-  await expect(page.getByText('No disponible')).toBeVisible({
-    timeout: 30_000,
-  });
-
-  const nextMonthDays = page.locator('.MuiTypography-body2').filter({
-    hasText: /^\d{1,2}$/,
-  });
-  const nextCount = await nextMonthDays.count();
-  for (let i = 0; i < nextCount; i += 1) {
-    const day = nextMonthDays.nth(i);
-    const decoration = await day.evaluate(
-      (node) => getComputedStyle(node).textDecorationLine,
-    );
-    if (decoration.includes('line-through')) {
-      continue;
-    }
-    await day.click();
-    return;
+  if (pick === undefined) {
+    throw new Error('No available calendar day found for E2E booking');
   }
 
-  throw new Error('No available calendar day found for E2E booking');
+  await clickCalendarDay(page, pick);
 }

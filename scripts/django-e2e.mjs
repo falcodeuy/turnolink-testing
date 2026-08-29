@@ -3,7 +3,11 @@
  * Invoke Django E2E management commands using the backend's existing venv.
  *
  * Usage:
- *   node scripts/django-e2e.mjs seed|reset|calendar-status|verify-calendar [-- args]
+ *   node scripts/django-e2e.mjs seed|reset|prepare|calendar-status|verify-calendar [-- args]
+ *
+ * Examples:
+ *   node scripts/django-e2e.mjs prepare onboarding --json
+ *   npm run e2e:prepare -- onboarding
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -18,6 +22,8 @@ loadDotenv({ path: path.join(root, '.env') });
 const COMMANDS = {
   seed: 'e2e_seed',
   reset: 'e2e_reset',
+  // One manage command for all journey fixtures — pass scenario as next arg.
+  prepare: 'e2e_prepare',
   'calendar-status': 'e2e_calendar_status',
   'verify-calendar': 'e2e_verify_calendar',
 };

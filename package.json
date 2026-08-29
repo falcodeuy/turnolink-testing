@@ -5,14 +5,18 @@
   "description": "End-to-end tests for TurnoLink (Playwright)",
   "scripts": {
     "check-env": "node scripts/check-env.mjs",
-    "test": "npm run check-env && playwright test",
+    "test": "npm run check-env && playwright test --grep-invert @integration",
     "test:smoke": "npm run check-env && playwright test --grep @smoke",
     "test:auth": "npm run check-env && playwright test --grep @auth",
-    "test:journeys": "npm run check-env && playwright test --grep @journey",
+    "test:journeys": "npm run check-env && playwright test tests/journeys",
+    "test:onboarding": "npm run check-env && playwright test tests/journeys/onboarding",
     "seed": "node scripts/django-e2e.mjs seed",
     "reset": "node scripts/django-e2e.mjs reset",
+    "e2e:prepare": "node scripts/django-e2e.mjs prepare",
     "calendar:status": "node scripts/django-e2e.mjs calendar-status",
+    "test:integrations": "npm run check-env && playwright test tests/integrations",
     "test:calendar": "npm run check-env && playwright test --grep @calendar",
+    "test:all": "npm run check-env && playwright test",
     "test:local": "TARGET_ENV=local npm run test",
     "test:production": "TARGET_ENV=production npm run check-env && TARGET_ENV=production playwright test tests/production",
     "test:headed": "npm run check-env && playwright test --headed",
@@ -24,7 +28,7 @@
     "cli": "playwright cli",
     "cli:public": "playwright cli -s=public open ${PUBLIC_WEB_URL:-http://localhost:3000} --headed",
     "cli:professional": "playwright cli -s=professional open ${PROFESSIONAL_WEB_URL:-http://localhost:3001} --headed",
-    "mcp:hermes": "npx --yes @playwright/mcp@latest --port 8931 --host 0.0.0.0 --isolated --allowed-hosts 192.168.1.9:8931,192.168.1.9,127.0.0.1,localhost"
+    "mcp:hermes": "node scripts/mcp-hermes.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

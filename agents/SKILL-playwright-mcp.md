@@ -2,7 +2,8 @@
 
 How to call Playwright MCP tools. Copy this into Hermes as a skill, or paste it with the exploratory runbook.
 
-Browser runs **on the Mac**. Do not use Hermes terminal.
+Browser runs on the **host that runs Playwright MCP** (same machine as the
+TurnoLink stack). Do not use the Hermes terminal for browser work.
 
 Golden rule: **snapshot → copy `ref` → click/type**. Never click without a fresh snapshot.
 
@@ -36,7 +37,8 @@ Call:
 
 Then immediately `browser_snapshot`.
 
-If error contains `ERR_CONNECTION_REFUSED`: stop. Tell human to start Mac apps + `npm run mcp:hermes`.
+If error contains `ERR_CONNECTION_REFUSED`: stop. Tell human to start the stack
+(`:3000` / `:3001` / `:8000`) and `npm run mcp:hermes` on the MCP host.
 
 ---
 

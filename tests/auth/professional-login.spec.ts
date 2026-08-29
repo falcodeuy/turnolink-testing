@@ -1,22 +1,16 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/e2e';
 import { apps } from '../../src/apps';
 import { loginProfessionalApi } from '../../src/api/auth';
 import {
-  hasProfessionalCredentials,
   loginProfessionalViaApi,
   loginProfessionalViaUi,
   requireProfessionalCredentials,
 } from '../../src/professionalAuth';
 
 test.describe('@auth professional authentication', () => {
-  test.beforeEach(() => {
-    test.skip(
-      !hasProfessionalCredentials(),
-      'Set E2E_PROFESSIONAL_EMAIL and E2E_PROFESSIONAL_PASSWORD in .env',
-    );
-  });
-
-  test('API login returns access token', async () => {
+  test('API login returns access token', async ({
+    seededProfessional: _seededProfessional,
+  }) => {
     const credentials = requireProfessionalCredentials();
     const session = await loginProfessionalApi(
       credentials.email,
@@ -30,7 +24,10 @@ test.describe('@auth professional authentication', () => {
     );
   });
 
-  test('API session cookie opens portal routes', async ({ page }) => {
+  test('API session cookie opens portal routes', async ({
+    page,
+    seededProfessional: _seededProfessional,
+  }) => {
     await loginProfessionalViaApi(page);
     await page.goto(`${apps.professional()}/portal/dashboard`, {
       waitUntil: 'domcontentloaded',
@@ -40,7 +37,10 @@ test.describe('@auth professional authentication', () => {
     await expect(page).toHaveURL(/\/portal\//);
   });
 
-  test('UI login reaches portal or company onboarding', async ({ page }) => {
+  test('UI login reaches portal or company onboarding', async ({
+    page,
+    seededProfessional: _seededProfessional,
+  }) => {
     await loginProfessionalViaUi(page);
     await expect(page).toHaveURL(/\/(portal|company)(\/|$)/);
   });
