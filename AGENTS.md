@@ -6,9 +6,8 @@ Source of truth for agents in this repo. `CLAUDE.md` only points here.
 
 | Kind | Use |
 |------|-----|
-| **General** | Cursor plugin **web-testing** → `playwright-web-tester` (and `playwright-testable-ui` if UI lacks roles/labels) |
+| **General** | Cursor plugin **web-testing** → `playwright-web-tester` (+ `playwright-e2e-fixtures` when changing Django seed/prepare; `playwright-testable-ui` if UI lacks roles/labels) |
 | **Product (this repo)** | [`.agents/skills/turnolink-e2e/SKILL.md`](.agents/skills/turnolink-e2e/SKILL.md) |
-| **Backend fixtures** | In `turnolink-backend`: `.agents/skills/turnolink-e2e-fixtures/SKILL.md` |
 
 If **web-testing** is missing, stop and tell the user. Do not vendor generic Playwright docs here.
 

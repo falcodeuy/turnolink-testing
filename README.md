@@ -61,7 +61,7 @@ npm run e2e:prepare -- onboarding
 | `onboarding` | User at step 0 + company/branch (skips email verify). Distinct `--email` per parallel spec. |
 
 Guards: blocked when `DJANGO_ENV=production` unless `E2E_TOOLS_ENABLED=true`.
-Backend skill: `turnolink-backend/.agents/skills/turnolink-e2e-fixtures/`.
+Fixture patterns: plugin skill **`playwright-e2e-fixtures`** (web-testing).
 
 ## Environments
 

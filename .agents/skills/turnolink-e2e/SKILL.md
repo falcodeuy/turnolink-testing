@@ -3,15 +3,16 @@ name: turnolink-e2e
 description: >-
   TurnoLink product conventions for Playwright journeys (URLs, seed vs prepare,
   helpers, fixtures, tags, coverage). Use after playwright-web-tester.
-  Follow AGENTS.md. For Django fixture changes use turnolink-e2e-fixtures
-  in turnolink-backend.
+  Follow AGENTS.md. For Django seed/prepare changes use playwright-e2e-fixtures
+  from the web-testing plugin (product paths: companies.e2e / e2e_prepare).
 ---
 
 # TurnoLink E2E overlay
 
 Product-specific only. Strategy/CLI → plugin **web-testing**. Gates →
-**[AGENTS.md](../../../AGENTS.md)** (read the **Fast path** there). Backend data →
-**turnolink-e2e-fixtures**.
+**[AGENTS.md](../../../AGENTS.md)** (read the **Fast path** there). Backend data
+patterns → **`playwright-e2e-fixtures`** (same plugin). Local modules:
+`companies.e2e` + `e2e_prepare` scenarios.
 
 When asked to create a journey: curl + helpers → CLI → write. Do not re-read this
 file or AGENTS if already loaded; do not mine frontend source for locators while
