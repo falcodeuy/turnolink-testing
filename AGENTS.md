@@ -19,17 +19,23 @@ When the user asks for a concrete test and the ask is clear:
 1. Parallel: curl URLs from .env + list matching helpers under src/ + fixtures/e2e.ts
 2. CLI once: npx --no-install playwright cli --help (reuse that binary)
 3. If stack down → one short ask to start apps; STOP. Do not grep frontend source for locators.
-4. If stack up → CLI open → find / generate-locator → thin helper + spec
-5. Run the changed test. Done.
+4. If stack up → SAME TURN: CLI open (headed) → auth (see turnolink-e2e) → find / generate-locator
+5. Thin helper + spec → run the changed test. Done.
 ```
+
+Step 4 is mandatory before writing helpers. Do **not** insert probe specs,
+`scripts/save-*-auth.*`, or another skill/README pass between curl-ok and CLI open.
 
 **Hard limits**
 
 - Do **not** re-read AGENTS / skills / README if already loaded this turn.
 - Do **not** open frontend/backend source to invent locators while the UI is reachable.
 - Do **not** start “fix tooling / rewrite docs” mid-flight unless the user asked for that.
+- Do **not** create `tests/**/_explore*.spec.ts`, locator-dump tests, or one-off auth
+  scripts to “see the UI” — use Playwright CLI (`npm run cli:professional` / `cli:public`).
 - Cap exploratory source reads: only after a failing live run, or for a product bug.
 - Sandbox / browsers path: retry with full permissions and/or `PLAYWRIGHT_BROWSERS_PATH` — do not treat as “CLI missing.”
+- If CLI auth is policy-blocked: ask once / request approval — do not invent a probe test.
 
 ## Before exploring or writing journeys
 

@@ -14,9 +14,34 @@ Product-specific only. Strategy/CLI → plugin **web-testing**. Gates →
 patterns → **`playwright-e2e-fixtures`** (same plugin). Local modules:
 `companies.e2e` + `e2e_prepare` scenarios.
 
-When asked to create a journey: curl + helpers → CLI → write. Do not re-read this
-file or AGENTS if already loaded; do not mine frontend source for locators while
-the stack is up; if the stack is down, ask once and stop.
+When asked to create a journey: curl + helpers → **CLI open same turn** → write.
+Do not re-read this file or AGENTS if already loaded; do not mine frontend source
+for locators while the stack is up; if the stack is down, ask once and stop.
+
+## CLI auth (professional panel)
+
+Use Playwright CLI — not temporary explore specs.
+
+```text
+npm run cli:professional
+# or: npx playwright cli -s=pro open $PROFESSIONAL_WEB_URL --headed
+```
+
+Then authenticate **inline** (no new repo files):
+
+1. **UI login:** `run-code` loads `.env` via dotenv, fills `#email` / `#password`,
+   submits — never put secrets in shell argv.
+2. **Or API cookie:** `run-code` POSTs `login/` and `addCookies` with the same
+   `user` cookie shape as `loginProfessionalViaApi` / `toAuthCookieValue`, then
+   `goto` the target route.
+
+Keep the session open; `find` / `generate-locator` / small snapshots only.
+`state-save` under `.playwright-cli/` is optional and must stay gitignored —
+do not commit auth dumps.
+
+If a policy gate blocks credential use in the shell: ask once or request
+approval. **Never** add `tests/**/_explore*.spec.ts` or `scripts/save-*-auth.*`
+as a workaround.
 
 ## Seed vs prepare
 
@@ -53,7 +78,7 @@ import { test, expect } from '../../fixtures/e2e';
 
 **Reuse `src/` before inventing:** `booking.ts`, `professionalAuth.ts`,
 `appointments.ts`, `browser.ts`, `calendar.ts`, `onboarding.ts`, `services.ts`,
-`djangoManage.ts`.
+`employees.ts`, `branches.ts`, `djangoManage.ts`.
 
 Locators: login `#email` `#password`; booking preview `#name` `#phone` `#email`;
 Reservas `#search`. Custom Inputs often lack labels — prefer role + heading;
@@ -73,12 +98,15 @@ Reservas `#search`. Custom Inputs often lack labels — prefer role + heading;
 - OAuth / Mercado Pago UI unless dedicated
 - Playwright MCP (Hermes) for normal authoring
 - Inventing locators when the stack is down
+- Temporary `_explore*.spec.ts` / auth-save scripts instead of CLI exploration
+- Delaying CLI open after curl-ok to re-read skills or invent tooling
 
 ## Coverage
 
 **Done:** smoke; professional auth; book → Reservas → delete; book → Google
 Calendar; onboarding (happy / domicilio / multi-schedule / images); create
-company service; production read-only.
+company service; create company employee; create company branch (virtual);
+production read-only.
 
 **Next (local writes):** cancel appointment, embed, clients after booking,
 calendar page, company config (no OAuth), discounts.
