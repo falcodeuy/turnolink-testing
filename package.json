@@ -8,6 +8,8 @@
     "test": "npm run check-env && playwright test --grep-invert @integration",
     "test:smoke": "npm run check-env && playwright test --grep @smoke",
     "test:auth": "npm run check-env && playwright test --grep @auth",
+    "chrome:google-auth": "node scripts/chrome-google-auth.mjs",
+    "test:google-auth": "npm run check-env && playwright test --grep @google",
     "test:journeys": "npm run check-env && playwright test tests/journeys",
     "test:onboarding": "npm run check-env && playwright test tests/journeys/onboarding",
     "seed": "node scripts/django-e2e.mjs seed",

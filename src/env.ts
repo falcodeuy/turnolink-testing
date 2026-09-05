@@ -24,6 +24,10 @@ export type EnvConfig = {
   e2eAllowedCompanySlug: string;
   e2eProfessionalEmail: string;
   e2eProfessionalPassword: string;
+  e2eGoogleEmail: string;
+  e2eChromeCdpUrl: string;
+  e2eChromeUserDataDir: string;
+  e2eChromeSourceProfile: string;
 };
 
 export type ProfessionalCredentials = {
@@ -110,6 +114,10 @@ export function loadEnv(): EnvConfig {
     e2eAllowedCompanySlug: (process.env.E2E_ALLOWED_COMPANY_SLUG ?? '').trim(),
     e2eProfessionalEmail: (process.env.E2E_PROFESSIONAL_EMAIL ?? '').trim(),
     e2eProfessionalPassword: (process.env.E2E_PROFESSIONAL_PASSWORD ?? '').trim(),
+    e2eGoogleEmail: (process.env.E2E_GOOGLE_EMAIL ?? '').trim(),
+    e2eChromeCdpUrl: (process.env.E2E_CHROME_CDP_URL ?? '').trim().replace(/\/$/, ''),
+    e2eChromeUserDataDir: (process.env.E2E_CHROME_USER_DATA_DIR ?? '').trim(),
+    e2eChromeSourceProfile: (process.env.E2E_CHROME_SOURCE_PROFILE ?? '').trim(),
   };
 }
 
