@@ -140,7 +140,8 @@ Prefer `getByRole` / `getByLabel` / `getByText`, then `getByTestId`. Avoid britt
 ## Roadmap (short)
 
 Done: scaffold, auth, seed/reset/prepare, book→panel, Calendar, onboarding,
-create service, production read-only, CLI, Hermes MCP.
+create service, create employee/branch, company config (datos básicos + reservas
+online), production read-only, CLI, Hermes MCP.
 
-Next: more local journeys (cancel, embed, clients, calendar page, company config);
-CI deferred; controlled production writes later.
+Next: more local journeys (cancel, embed, clients, calendar page, horarios,
+discounts); CI deferred; controlled production writes later.

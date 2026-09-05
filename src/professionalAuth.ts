@@ -53,10 +53,11 @@ export async function loginProfessionalViaApi(
   );
 
   // Playwright: use either `url` OR `domain`+`path`, not both.
+  // Professional web auth cookie is `tl_admin_auth` (legacy `user` is cleared).
   const professionalUrl = new URL(apps.professional());
   await page.context().addCookies([
     {
-      name: 'user',
+      name: 'tl_admin_auth',
       value: toAuthCookieValue(session),
       domain: professionalUrl.hostname,
       path: '/',

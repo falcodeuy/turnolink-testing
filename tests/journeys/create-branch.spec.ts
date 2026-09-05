@@ -2,10 +2,11 @@ import { test } from '../../fixtures/e2e';
 import {
   createCompanyBranchInPanel,
   expectBranchInCompanyPanel,
+  expectBranchSelectableForNewEmployee,
 } from '../../src/branches';
 
 test.describe('@journey create company branch', () => {
-  test('Empresa → Sucursales → Agregar nuevo → sucursal aparece en la lista', async ({
+  test('Empresa → Sucursales → virtual → lista + asignable a empleado', async ({
     recordedPage,
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
@@ -22,5 +23,6 @@ test.describe('@journey create company branch', () => {
     });
 
     await expectBranchInCompanyPanel(recordedPage, branchName);
+    await expectBranchSelectableForNewEmployee(recordedPage, branchName);
   });
 });

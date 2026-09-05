@@ -32,8 +32,8 @@ Then authenticate **inline** (no new repo files):
 1. **UI login:** `run-code` loads `.env` via dotenv, fills `#email` / `#password`,
    submits — never put secrets in shell argv.
 2. **Or API cookie:** `run-code` POSTs `login/` and `addCookies` with the same
-   `user` cookie shape as `loginProfessionalViaApi` / `toAuthCookieValue`, then
-   `goto` the target route.
+   `tl_admin_auth` cookie shape as `loginProfessionalViaApi` / `toAuthCookieValue`,
+   then `goto` the target route.
 
 Keep the session open; `find` / `generate-locator` / small snapshots only.
 `state-save` under `.playwright-cli/` is optional and must stay gitignored —
@@ -78,7 +78,7 @@ import { test, expect } from '../../fixtures/e2e';
 
 **Reuse `src/` before inventing:** `booking.ts`, `professionalAuth.ts`,
 `appointments.ts`, `browser.ts`, `calendar.ts`, `onboarding.ts`, `services.ts`,
-`employees.ts`, `branches.ts`, `djangoManage.ts`.
+`employees.ts`, `branches.ts`, `companyConfig.ts`, `djangoManage.ts`.
 
 Locators: login `#email` `#password`; booking preview `#name` `#phone` `#email`;
 Reservas `#search`. Custom Inputs often lack labels — prefer role + heading;
@@ -105,8 +105,11 @@ Reservas `#search`. Custom Inputs often lack labels — prefer role + heading;
 
 **Done:** smoke; professional auth; book → Reservas → delete; book → Google
 Calendar; onboarding (happy / domicilio / multi-schedule / images); create
-company service; create company employee; create company branch (virtual);
-production read-only.
+company service; create company employee (Manager + reopen detalle); create
+company branch (virtual + asignable a empleado); company config Datos básicos
+(persist + agenda pública Información); company config Reservas Online
+(intervalo al guardar + restore); production read-only.
 
 **Next (local writes):** cancel appointment, embed, clients after booking,
-calendar page, company config (no OAuth), discounts.
+calendar page, company config Horarios (time picker), Medios de Pago / OAuth,
+discounts, Recursos compartidos, employee notif/aforo edge cases.

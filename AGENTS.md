@@ -2,6 +2,15 @@
 
 Source of truth for agents in this repo. `CLAUDE.md` only points here.
 
+## Comments
+
+Do not add comments that only narrate what the code does.
+
+- Prefer clear names and structure over commentary.
+- No section banners, restating the next line, or leftover TODOs.
+- Comment only when the *why* is non-obvious; keep it short.
+- Do not leave commented-out code.
+
 ## Skills
 
 | Kind | Use |
