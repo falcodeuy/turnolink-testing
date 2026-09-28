@@ -3,25 +3,22 @@ import {
   createCompanyServiceInPanel,
   expectServiceInCompanyPanel,
 } from '../../src/services';
+import { uniqueLabel } from '../../src/unique';
 
 test.describe('@journey create company service', () => {
   test('Empresa → Agregar nuevo → servicio aparece en el árbol', async ({
-    recordedPage,
+    loggedInProfessionalPage,
     localWrites: _localWrites,
-    seededProfessional: _seededProfessional,
   }) => {
-    test.setTimeout(180_000);
+    const serviceName = uniqueLabel('E2E Servicio');
 
-    const stamp = Date.now();
-    const serviceName = `E2E Servicio ${stamp}`;
-
-    await createCompanyServiceInPanel(recordedPage, {
+    await createCompanyServiceInPanel(loggedInProfessionalPage, {
       name: serviceName,
       durationLabel: '30m',
       price: '1500',
       category: 'E2E Category',
     });
 
-    await expectServiceInCompanyPanel(recordedPage, serviceName);
+    await expectServiceInCompanyPanel(loggedInProfessionalPage, serviceName);
   });
 });

@@ -4,6 +4,7 @@ import {
   expectCompanyInfoOnPublicWeb,
   updateCompanyBasicDataInPanel,
 } from '../../src/companyConfig';
+import { uniqueStamp } from '../../src/unique';
 
 test.describe('@journey company config basics', () => {
   test('Configuración → Datos básicos → persiste y se ve en agenda pública', async ({
@@ -12,9 +13,7 @@ test.describe('@journey company config basics', () => {
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
   }) => {
-    test.setTimeout(180_000);
-
-    const stamp = Date.now();
+    const stamp = uniqueStamp();
     const description = `E2E desc ${stamp}`;
     const website = `https://e2e.example.com/${stamp}`;
     const instagramUrl = `https://instagram.com/e2e${stamp}`;

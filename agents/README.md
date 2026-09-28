@@ -1,4 +1,8 @@
-# Hermes + Playwright MCP (optional)
+# Hermes + Playwright MCP (optional, not for Cursor authoring)
+
+> **Cursor agents:** ignore this folder for creating or debugging Playwright
+> specs. Use Playwright CLI (`npm run cli:professional` / `cli:public`) and
+> follow **[AGENTS.md](../AGENTS.md)** + `.agents/skills/turnolink-e2e/`.
 
 Deterministic Playwright specs stay in `tests/`. Hermes is a separate exploratory
 layer: OpenRouter thinks, Playwright MCP drives a browser on the **host that runs
@@ -35,4 +39,5 @@ curl -sI http://HOST_LAN_IP:8931/mcp
    [`exploratory-prompt.md`](exploratory-prompt.md).
 
 Do **not** expose port 8931 beyond your LAN. Do not use Hermes MCP for normal
-Cursor test authoring (use Playwright CLI instead).
+Cursor test authoring (use Playwright CLI instead). Never put passwords in
+committed prompts — use values from the host’s `.env` / ask the human.

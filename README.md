@@ -29,9 +29,9 @@ turnolink-testing
 
 ```text
 tests/{smoke,auth,journeys,integrations,production}/
-fixtures/e2e.ts          # Playwright fixtures (recorded page/context, skips)
+fixtures/e2e.ts          # Playwright fixtures (recorded page/context, logged-in panel, skips)
 fixtures/images/         # Static upload assets
-src/                     # Helpers (booking, auth, onboarding, …)
+src/                     # Helpers (booking, auth, overlays, unique, onboarding, …)
 scripts/                 # check-env, django-e2e, mcp-hermes
 artifacts/               # gitignored reports/videos
 ```
@@ -125,8 +125,9 @@ Do not use CLI against production. Snapshots are gitignored under `.playwright-c
 
 ## Exploratory AI (Hermes)
 
-Deterministic specs stay in `tests/`. Hermes + Playwright MCP is optional and
-documented under [`agents/`](agents/) (MCP snippet, skill, exploratory prompt).
+**Optional only.** Deterministic specs stay in `tests/`. Cursor authoring uses
+Playwright CLI — not Hermes. Hermes + Playwright MCP is documented under
+[`agents/`](agents/) for separate exploratory runs.
 
 ```bash
 # Set HERMES_ALLOWED_HOSTS to the MCP host LAN IP in .env, then:
@@ -136,6 +137,8 @@ npm run mcp:hermes
 ## Locators
 
 Prefer `getByRole` / `getByLabel` / `getByText`, then `getByTestId`. Avoid brittle CSS.
+Product locator tips and known traps: `.agents/skills/turnolink-e2e/`. Unique created
+data: `src/unique.ts`. Overlays: `src/overlays.ts`.
 
 ## Roadmap (short)
 

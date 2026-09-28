@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { prepareE2eScenario } from './djangoManage';
 import type { ProfessionalCredentials } from './env';
+import { dismissHelpModalIfPresent } from './overlays';
 import { loginProfessionalViaUi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
 
@@ -88,13 +89,6 @@ export function prepareE2eOnboardingUser(
         ? null
         : Number(payload.branch_id),
   };
-}
-
-async function dismissHelpModalIfPresent(page: Page): Promise<void> {
-  const close = page.getByRole('button', { name: 'cerrar' });
-  if (await close.isVisible().catch(() => false)) {
-    await close.click();
-  }
 }
 
 async function continueOnboarding(page: Page): Promise<void> {

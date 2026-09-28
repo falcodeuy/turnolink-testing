@@ -4,20 +4,17 @@ import {
   expectEmployeeDetailsInPanel,
   expectEmployeeInCompanyPanel,
 } from '../../src/employees';
+import { uniqueEmail, uniqueLabel } from '../../src/unique';
 
 test.describe('@journey create company employee', () => {
   test('Empresa → Equipo → crear Manager → lista + detalle', async ({
-    recordedPage,
+    loggedInProfessionalPage,
     localWrites: _localWrites,
-    seededProfessional: _seededProfessional,
   }) => {
-    test.setTimeout(180_000);
+    const employeeName = uniqueLabel('E2E Empleado');
+    const employeeEmail = uniqueEmail('e2e-emp', 'turnolink.local');
 
-    const stamp = Date.now();
-    const employeeName = `E2E Empleado ${stamp}`;
-    const employeeEmail = `e2e-emp-${stamp}@turnolink.local`;
-
-    await createCompanyEmployeeInPanel(recordedPage, {
+    await createCompanyEmployeeInPanel(loggedInProfessionalPage, {
       name: employeeName,
       email: employeeEmail,
       phone: '099111222',
@@ -25,8 +22,8 @@ test.describe('@journey create company employee', () => {
       branch: 'E2E Branch',
     });
 
-    await expectEmployeeInCompanyPanel(recordedPage, employeeName);
-    await expectEmployeeDetailsInPanel(recordedPage, {
+    await expectEmployeeInCompanyPanel(loggedInProfessionalPage, employeeName);
+    await expectEmployeeDetailsInPanel(loggedInProfessionalPage, {
       name: employeeName,
       email: employeeEmail,
       role: 'Manager',

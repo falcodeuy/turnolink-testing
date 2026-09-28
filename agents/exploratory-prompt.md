@@ -67,12 +67,14 @@ Stop after these 5. Do not wander.
 
 1. `browser_navigate` → `http://127.0.0.1:3001/login`
 2. Snapshot.
-3. Fill `#email` → `e2e-owner@turnolink.local`
-4. Fill `#password` → `e2e-owner-pass-123`
-5. Click **Ingresar**.
-6. Go to `http://127.0.0.1:3001/portal/appointments`
-7. Snapshot. Search `#search` for `Hermes` or `E2E`.
-8. Report if the booking from A is visible.
+3. Fill `#email` and `#password` with the **seeded professional credentials**
+   the human provides (same as `E2E_PROFESSIONAL_EMAIL` /
+   `E2E_PROFESSIONAL_PASSWORD` after `npm run seed`). **Never invent or hardcode
+   passwords in replies.**
+4. Click **Ingresar**.
+5. Go to `http://127.0.0.1:3001/portal/appointments`
+6. Snapshot. Search `#search` for `Hermes` or `E2E`.
+7. Report if the booking from A is visible.
 
 ## How to reply to the human
 

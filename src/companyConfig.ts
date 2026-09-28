@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { e2eCompanySlug } from './booking';
+import { dismissNextjsPortalIfPresent } from './overlays';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
 
@@ -33,9 +34,7 @@ async function gotoConfiguration(
   });
 
   const tabButton = page.getByRole('tab', { name: tab });
-  await page.evaluate(() => {
-    document.querySelector('nextjs-portal')?.remove();
-  });
+  await dismissNextjsPortalIfPresent(page);
   await expect(tabButton).toBeVisible({ timeout: 30_000 });
   await tabButton.click();
   await expect(tabButton).toHaveAttribute('aria-selected', 'true', {
@@ -198,12 +197,8 @@ export async function expectCompanyInfoOnPublicWeb(
   await expect(page.getByText('Información').first()).toBeVisible({
     timeout: 60_000,
   });
-  // Local Next.js issues badge/portal can intercept normal clicks.
-  await page.evaluate(() => {
-    document.querySelector('nextjs-portal')?.remove();
-  });
-  const infoTab = page.getByRole('tab', { name: 'Información' });
-  if (await infoTab.count()) {
+  await dismissNextjsPortalIfPresent(page);
+  const infoTab = page.getByRole('tab', { name: 'Información' });  if (await infoTab.count()) {
     await infoTab.click({ force: true });
   } else {
     await page.getByText('Información', { exact: true }).first().click({

@@ -21,8 +21,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  // Next.js cold compile can exceed the default 30s locally
-  timeout: 60_000,
+  // Journeys (booking, onboarding, company config) commonly exceed 60s locally.
+  timeout: 180_000,
   expect: { timeout: 15_000 },
   outputDir: 'artifacts/test-results',
   reporter: [

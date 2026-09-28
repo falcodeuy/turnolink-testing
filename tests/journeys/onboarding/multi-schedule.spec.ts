@@ -4,14 +4,13 @@ import {
   prepareE2eOnboardingUser,
   runOnboardingJourney,
 } from '../../../src/onboarding';
+import { uniqueLabel } from '../../../src/unique';
 
 test.describe('@journey onboarding multi schedule', () => {
   test('weekday block + weekend block via Agregar horario', async ({
     recordedPage,
     localWrites: _localWrites,
   }) => {
-    test.setTimeout(180_000);
-
     const user = prepareE2eOnboardingUser({
       email: 'e2e-onboarding-schedules@turnolink.local',
       phone: '+59899111003',
@@ -19,7 +18,7 @@ test.describe('@journey onboarding multi schedule', () => {
     });
 
     await runOnboardingJourney(recordedPage, user, {
-      companyName: `E2E Horarios ${Date.now()}`,
+      companyName: uniqueLabel('E2E Horarios'),
       attendance: 'virtual',
       schedules: [
         {

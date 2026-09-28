@@ -20,6 +20,14 @@ Do not add comments that only narrate what the code does.
 
 If **web-testing** is missing, stop and tell the user. Do not vendor generic Playwright docs here.
 
+## Ownership
+
+| Repo | Owns |
+|------|------|
+| `turnolink-testing` | Specs, helpers, fixtures, `.env.example` |
+| `turnolink-web` / `turnolink-professional-web` | Accessible names, labels, sparse `data-testid` |
+| `turnolink-backend` | Idempotent `e2e_seed` / `e2e_prepare` and stable fixture names |
+
 ## Fast path (create / extend a journey)
 
 When the user asks for a concrete test and the ask is clear:
@@ -45,6 +53,7 @@ Step 4 is mandatory before writing helpers. Do **not** insert probe specs,
 - Cap exploratory source reads: only after a failing live run, or for a product bug.
 - Sandbox / browsers path: retry with full permissions and/or `PLAYWRIGHT_BROWSERS_PATH` — do not treat as “CLI missing.”
 - If CLI auth is policy-blocked: ask once / request approval — do not invent a probe test.
+- Do **not** use Hermes / Playwright MCP (`agents/`) for normal Cursor authoring.
 
 ## Before exploring or writing journeys
 
@@ -53,6 +62,21 @@ Step 4 is mandatory before writing helpers. Do **not** insert probe specs,
 3. **CLI** — detect once; keep sessions open; never auto-install. Prefer live `find` / `generate-locator`; never paste full snapshot YAML.
 4. **Data** — `npm run seed` or `e2e:prepare -- <scenario>` / helpers. Never create a Python venv here.
 5. **Reuse** — existing `src/` helpers and `fixtures/e2e.ts` before writing new ones.
+
+## Tips
+
+Read before inventing a locator or a wait loop. Product detail:
+[`.agents/skills/turnolink-e2e/SKILL.md`](.agents/skills/turnolink-e2e/SKILL.md).
+
+- **Name the control, then locate it.** If a Custom Input or icon has no accessible name, fix the product (`playwright-testable-ui`). Do not paper over with `.nth()` / `.first()`.
+- **Copy accessible names exactly** (`{ exact: true }` on Spanish CTAs like `Continuar`). Prefer CLI `find` / `generate-locator`.
+- **A click that does not change the screen** is usually an overlay (`nextjs-portal`, help modal). Call `dismissNonEssentialOverlays` / helpers in `src/overlays.ts` — do not retry the same click.
+- **Do not add `waitForTimeout` / `sleep`.** Actions and `expect` already auto-wait.
+- **Optional overlays stay in shared helpers.** Absence must not fail the test.
+- **Created data must be unique under `fullyParallel`.** Use `uniqueLabel` / `uniqueEmail` / `uniquePhone` / `uniqueStamp` from `src/unique.ts`.
+- **Shared seed tenant** (`turnolink-e2e`): booking / panel / create-* add entities. Company config journeys **mutate** shared settings — avoid overlapping them with each other in the same wave. Onboarding uses `e2e:prepare` with distinct emails.
+- **Panel-only journeys:** prefer fixture `loggedInProfessionalPage` (API cookie + implies `seededProfessional`).
+- **Suite timeout is 180s** in `playwright.config.ts`. Only override for slower integrations (e.g. Calendar 240s).
 
 ## Quality bar
 

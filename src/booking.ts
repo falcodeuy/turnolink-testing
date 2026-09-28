@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { env } from './env';
+import { dismissNextjsPortalIfPresent } from './overlays';
 import { assertNotProductionWriteContext } from './safety';
 
 export function e2eCompanySlug(): string {
@@ -31,6 +32,7 @@ export async function bookAppointmentOnPublicWeb(
   await page.goto(`${apps.public()}/${slug}/services`, {
     waitUntil: 'domcontentloaded',
   });
+  await dismissNextjsPortalIfPresent(page);
 
   // Seeded company: single-select → clicking the variant auto-advances.
   await expect(page.getByText(variantName, { exact: true })).toBeVisible({
@@ -140,6 +142,7 @@ async function clickCalendarDay(page: Page, dayNumber: number): Promise<void> {
 }
 
 async function selectFirstAvailableDay(page: Page): Promise<void> {
+  await dismissNextjsPortalIfPresent(page);
   await expect(page.getByText('No disponible')).toBeVisible({
     timeout: 60_000,
   });

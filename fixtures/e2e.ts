@@ -2,7 +2,10 @@ import { test as base, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import { newRecordedContext } from '../src/browser';
 import { env } from '../src/env';
-import { hasProfessionalCredentials } from '../src/professionalAuth';
+import {
+  hasProfessionalCredentials,
+  loginProfessionalViaApi,
+} from '../src/professionalAuth';
 
 /**
  * Shared Playwright fixtures for reproducible E2E journeys.
@@ -13,6 +16,8 @@ import { hasProfessionalCredentials } from '../src/professionalAuth';
  * Usage:
  *   import { test, expect } from '../../fixtures/e2e';
  *   test('…', async ({ recordedPage, localWrites }) => { … });
+ *   // Already authenticated in the professional panel:
+ *   test('…', async ({ loggedInProfessionalPage, localWrites }) => { … });
  *   // Multi-tab / multi-app:
  *   test('…', async ({ createRecordedContext, localWrites, seededProfessional }) => {
  *     const publicCtx = await createRecordedContext();
@@ -26,6 +31,11 @@ type E2eFixtures = {
   recordedContext: BrowserContext;
   /** Fresh page inside `recordedContext`. */
   recordedPage: Page;
+  /**
+   * `recordedPage` plus API cookie auth for the professional panel.
+   * Implies `seededProfessional`. Domain helpers may still call login (cheap).
+   */
+  loggedInProfessionalPage: Page;
   /**
    * Factory for additional recorded contexts (public + professional tabs).
    * All contexts created via this factory are closed after the test.
@@ -56,6 +66,14 @@ export const test = base.extend<E2eFixtures>({
   recordedPage: async ({ recordedContext }, use) => {
     const page = await recordedContext.newPage();
     await use(page);
+  },
+
+  loggedInProfessionalPage: async (
+    { recordedPage, seededProfessional: _seededProfessional },
+    use,
+  ) => {
+    await loginProfessionalViaApi(recordedPage);
+    await use(recordedPage);
   },
 
   createRecordedContext: async ({ browser }, use) => {

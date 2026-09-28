@@ -4,25 +4,25 @@ import {
   expectBranchInCompanyPanel,
   expectBranchSelectableForNewEmployee,
 } from '../../src/branches';
+import { uniqueLabel } from '../../src/unique';
 
 test.describe('@journey create company branch', () => {
   test('Empresa → Sucursales → virtual → lista + asignable a empleado', async ({
-    recordedPage,
+    loggedInProfessionalPage,
     localWrites: _localWrites,
-    seededProfessional: _seededProfessional,
   }) => {
-    test.setTimeout(180_000);
+    const branchName = uniqueLabel('E2E Sucursal');
 
-    const stamp = Date.now();
-    const branchName = `E2E Sucursal ${stamp}`;
-
-    await createCompanyBranchInPanel(recordedPage, {
+    await createCompanyBranchInPanel(loggedInProfessionalPage, {
       name: branchName,
       phone: '099222333',
       virtualCare: true,
     });
 
-    await expectBranchInCompanyPanel(recordedPage, branchName);
-    await expectBranchSelectableForNewEmployee(recordedPage, branchName);
+    await expectBranchInCompanyPanel(loggedInProfessionalPage, branchName);
+    await expectBranchSelectableForNewEmployee(
+      loggedInProfessionalPage,
+      branchName,
+    );
   });
 });

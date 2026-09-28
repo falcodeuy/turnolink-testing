@@ -4,6 +4,7 @@ import {
   assertE2eCalendarConnected,
   verifyBookingInGoogleCalendar,
 } from '../../src/calendar';
+import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@integration @calendar booking appears in Google Calendar', () => {
   test('public booking creates a Google Calendar event', async ({
@@ -12,14 +13,14 @@ test.describe('@integration @calendar booking appears in Google Calendar', () =>
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
   }) => {
+    // Calendar poll + Google API can exceed the suite default.
     test.setTimeout(240_000);
 
     assertE2eCalendarConnected();
 
-    const stamp = Date.now();
-    const clientName = `E2E Calendar ${stamp}`;
-    const phone = `098${String(stamp).slice(-6)}`;
-    const email = `e2e.calendar.${stamp}@example.com`;
+    const clientName = uniqueLabel('E2E Calendar');
+    const phone = uniquePhone('098');
+    const email = uniqueEmail('e2e.calendar');
 
     const publicContext = await createRecordedContext();
     const publicPage = await publicContext.newPage();
