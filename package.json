@@ -5,6 +5,7 @@
   "description": "End-to-end tests for TurnoLink (Playwright)",
   "scripts": {
     "check-env": "node scripts/check-env.mjs",
+    "env:smoke": "node scripts/env-smoke.mjs",
     "test": "npm run check-env && playwright test --grep-invert @integration",
     "test:smoke": "npm run check-env && playwright test --grep @smoke",
     "test:auth": "npm run check-env && playwright test --grep @auth",
@@ -30,7 +31,9 @@
     "cli": "playwright cli",
     "cli:public": "playwright cli -s=public open ${PUBLIC_WEB_URL:-http://localhost:3000} --headed",
     "cli:professional": "playwright cli -s=professional open ${PROFESSIONAL_WEB_URL:-http://localhost:3001} --headed",
-    "mcp:hermes": "node scripts/mcp-hermes.mjs"
+    "explore:public": "node scripts/explore-cli.mjs public",
+    "explore:professional": "node scripts/explore-cli.mjs professional",
+    "a11y:dump": "node scripts/a11y-dump.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",

@@ -3,7 +3,8 @@
 End-to-end tests for TurnoLink with [Playwright](https://playwright.dev/).
 Independent of the Django/Next repos: it drives them via URLs in `.env`.
 
-Agent rules: **[AGENTS.md](AGENTS.md)**. Product skill: `.agents/skills/turnolink-e2e/`.
+Agent rules: **[AGENTS.md](AGENTS.md)**. Install company plugins from
+**company-agent-toolkit**: `web-testing` + `turnolink-e2e`.
 
 ## Layers
 
@@ -29,10 +30,10 @@ turnolink-testing
 
 ```text
 tests/{smoke,auth,journeys,integrations,production}/
-fixtures/e2e.ts          # Playwright fixtures (recorded page/context, logged-in panel, skips)
+fixtures/e2e.ts          # Playwright fixtures
 fixtures/images/         # Static upload assets
-src/                     # Helpers (booking, auth, overlays, unique, onboarding, …)
-scripts/                 # check-env, django-e2e, mcp-hermes
+src/                     # Helpers (booking, auth, overlays, unique, …)
+scripts/                 # check-env, env-smoke, explore-cli, a11y-dump, django-e2e
 artifacts/               # gitignored reports/videos
 ```
 
@@ -83,6 +84,7 @@ cp .env.example .env
 npm install
 npx playwright install chromium
 npm run seed
+npm run env:smoke
 npm run test:smoke
 npm run test:auth
 npm run test:journeys
@@ -95,14 +97,16 @@ Videos default to on (`E2E_VIDEO=on`). Open report: `npm run report`.
 | Script | Description |
 |--------|-------------|
 | `npm test` | Local suite excluding `@integration` |
-| `test:smoke` / `test:auth` / `test:journeys` | Filtered runs |
+| `test:smoke` / `test:auth` / `test:journeys` | Filtered runs (`journeys` uses `--workers=1`) |
 | `test:integrations` / `test:calendar` | Opt-in externals |
 | `test:all` | Everything including integrations |
 | `test:production` | Read-only production |
 | `seed` / `reset` / `e2e:prepare` | Django fixtures via backend venv |
 | `calendar:status` | Google Calendar connection check |
-| `cli` / `cli:public` / `cli:professional` | Playwright CLI for agents |
-| `mcp:hermes` | Playwright MCP for Hermes (see `agents/`) |
+| `check-env` / `env:smoke` | Config validation / URL reachability |
+| `cli` / `cli:public` / `cli:professional` | Playwright CLI open |
+| `explore:public` / `explore:professional` | CLI open + auth snippet for panel |
+| `a11y:dump` | Compact role\|name dump for a URL (`--auth-pro` optional) |
 | `report` / `test:headed` / `test:ui` / `test:debug` | Artifacts & debug |
 
 Env vars: [`.env.example`](.env.example).
@@ -117,35 +121,24 @@ Env vars: [`.env.example`](.env.example).
 Stack must be up. Prefer CLI while authoring; specs remain the source of truth.
 
 ```bash
-npm run cli:public
-# or: npx playwright cli -s=public open http://localhost:3000 --headed
+npm run explore:professional
+# or: npm run cli:public
 ```
 
 Do not use CLI against production. Snapshots are gitignored under `.playwright-cli/`.
 
-## Exploratory AI (Hermes)
-
-**Optional only.** Deterministic specs stay in `tests/`. Cursor authoring uses
-Playwright CLI — not Hermes. Hermes + Playwright MCP is documented under
-[`agents/`](agents/) for separate exploratory runs.
-
-```bash
-# Set HERMES_ALLOWED_HOSTS to the MCP host LAN IP in .env, then:
-npm run mcp:hermes
-```
-
 ## Locators
 
 Prefer `getByRole` / `getByLabel` / `getByText`, then `getByTestId`. Avoid brittle CSS.
-Product locator tips and known traps: `.agents/skills/turnolink-e2e/`. Unique created
-data: `src/unique.ts`. Overlays: `src/overlays.ts`.
+Product tips: toolkit skill **turnolink-e2e**. Unique data: `src/unique.ts`.
+Overlays: `src/overlays.ts`.
 
 ## Roadmap (short)
 
 Done: scaffold, auth, seed/reset/prepare, book→panel, Calendar, onboarding,
 create service, create employee/branch, company config (datos básicos + reservas
 online + horarios), cancel / client / embed / multi-service / employee capacity
-journeys, production read-only, CLI, Hermes MCP.
+journeys, production read-only, CLI.
 
 Next: calendar page, discounts, Medios de Pago / OAuth; CI deferred; controlled
 production writes later.
