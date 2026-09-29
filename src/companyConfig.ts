@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { e2eCompanySlug } from './booking';
@@ -198,7 +198,8 @@ export async function expectCompanyInfoOnPublicWeb(
     timeout: 60_000,
   });
   await dismissNextjsPortalIfPresent(page);
-  const infoTab = page.getByRole('tab', { name: 'Información' });  if (await infoTab.count()) {
+  const infoTab = page.getByRole('tab', { name: 'Información' });
+  if (await infoTab.count()) {
     await infoTab.click({ force: true });
   } else {
     await page.getByText('Información', { exact: true }).first().click({
@@ -224,6 +225,12 @@ function intervalCombobox(page: Page) {
     .locator('xpath=following::div[@role="combobox"][1]');
 }
 
+function multipleServicesSwitch(page: Page) {
+  return page
+    .getByRole('heading', { name: 'Múltiples servicios' })
+    .locator('xpath=following::input[@type="checkbox"][1]');
+}
+
 /** Update Configuración → Reservas Online settings. */
 export async function updateOnlineBookingSettingsInPanel(
   page: Page,
@@ -244,11 +251,39 @@ export async function updateOnlineBookingSettingsInPanel(
     await expect(combo).toContainText(settings.intervalLabel);
   }
 
+  if (settings.multipleServices !== undefined) {
+    const toggle = multipleServicesSwitch(page);
+    await expect(toggle).toBeVisible({ timeout: 30_000 });
+    const checked = await toggle.isChecked();
+    if (checked !== settings.multipleServices) {
+      await toggle.click();
+    }
+    await expect(toggle).toBeChecked({
+      checked: settings.multipleServices,
+    });
+  }
+
+  if (settings.notifyClientsEmail !== undefined) {
+    const emailNotif = page.getByRole('checkbox', {
+      name: /Notificaciones por email/i,
+    });
+    if (settings.notifyClientsEmail) {
+      await emailNotif.check();
+    } else {
+      await emailNotif.uncheck();
+    }
+  }
+
   await saveCompanyPatch(page);
 
   if (settings.intervalLabel !== undefined) {
     await expect(intervalCombobox(page)).toContainText(settings.intervalLabel, {
       timeout: 30_000,
+    });
+  }
+  if (settings.multipleServices !== undefined) {
+    await expect(multipleServicesSwitch(page)).toBeChecked({
+      checked: settings.multipleServices,
     });
   }
 }
@@ -268,4 +303,162 @@ export async function expectOnlineBookingSettingsInPanel(
     await expect(combo).toContainText(/minutos|hora/i, { timeout: 60_000 });
     await expect(combo).toContainText(settings.intervalLabel);
   }
+  if (settings.multipleServices !== undefined) {
+    await expect(multipleServicesSwitch(page)).toBeChecked({
+      checked: settings.multipleServices,
+    });
+  }
+}
+
+function dayOpeningField(page: Page, dayLabel: string) {
+  return page.getByRole('textbox', {
+    name: `${dayLabel} Apertura`,
+    exact: true,
+  });
+}
+
+function dayClosingField(page: Page, dayLabel: string) {
+  return page.getByRole('textbox', {
+    name: `${dayLabel} Cierre`,
+    exact: true,
+  });
+}
+
+async function setTimePickerValue(
+  page: Page,
+  textbox: Locator,
+  hour: number,
+  minute = 0,
+): Promise<void> {
+  await dismissNextjsPortalIfPresent(page);
+  // Prior Snackbar can steal focus after auto-save.
+  await page.keyboard.press('Escape').catch(() => undefined);
+
+  await textbox.click({ force: true });
+
+  const hoursList = page.getByRole('listbox', { name: /horas/i });
+  if (!(await hoursList.isVisible().catch(() => false))) {
+    await textbox
+      .locator('xpath=ancestor::div[contains(@class,"MuiFormControl-root")][1]')
+      .getByRole('button', { name: /Elige hora/i })
+      .click({ force: true });
+  }
+  await expect(hoursList).toBeVisible({ timeout: 10_000 });
+
+  await pickDigitalClockOption(hoursList, `${hour} horas`, String(hour).padStart(2, '0'));
+
+  if (minute !== 0) {
+    const minutesList = page.getByRole('listbox', { name: /minutos/i });
+    await pickDigitalClockOption(
+      minutesList,
+      `${minute} minutos`,
+      String(minute).padStart(2, '0'),
+    );
+  }
+
+  const ok = page.getByRole('button', { name: 'OK' });
+  await expect(ok).toBeVisible({ timeout: 10_000 });
+  await ok.click();
+  await expect(hoursList).toBeHidden({ timeout: 10_000 });
+}
+
+/** MUI digital clock may need a nudge before the option is actionable. */
+async function pickDigitalClockOption(
+  listbox: Locator,
+  accessibleName: string,
+  paddedLabel: string,
+): Promise<void> {
+  const byRole = listbox.getByRole('option', {
+    name: accessibleName,
+    exact: true,
+  });
+  for (let i = 0; i < 24; i += 1) {
+    if ((await byRole.count()) > 0) {
+      await byRole.evaluate((el) =>
+        el.scrollIntoView({ block: 'center', inline: 'nearest' }),
+      );
+      await byRole.click({ force: true });
+      return;
+    }
+    await listbox.evaluate((el, delta) => {
+      el.scrollTop += delta;
+    }, i < 12 ? 56 : -56);
+  }
+  await listbox.getByText(paddedLabel, { exact: true }).click({ force: true });
+}
+
+export type CompanyDayHours = {
+  /** Spanish day label, e.g. `Lunes`. */
+  dayLabel: string;
+  openingHour: number;
+  closingHour: number;
+  openingMinute?: number;
+  closingMinute?: number;
+};
+
+/**
+ * Update Configuración → Horarios for one weekday (auto-saves on picker close).
+ * Restores nothing — callers should set seed hours back (Mon–Sat 9–18).
+ */
+export async function updateCompanyDayHoursInPanel(
+  page: Page,
+  hours: CompanyDayHours,
+): Promise<void> {
+  assertNotProductionWriteContext('update company schedule hours');
+
+  await loginProfessionalViaApi(page);
+  await gotoConfiguration(page, 'Horarios');
+
+  const opening = dayOpeningField(page, hours.dayLabel);
+  const closing = dayClosingField(page, hours.dayLabel);
+  await expect(opening).toBeVisible({ timeout: 60_000 });
+  await expect(closing).toBeVisible({ timeout: 60_000 });
+
+  await setTimePickerValue(
+    page,
+    opening,
+    hours.openingHour,
+    hours.openingMinute ?? 0,
+  );
+  await expect(
+    page.getByText('Horario actualizado correctamente'),
+  ).toBeVisible({ timeout: 30_000 });
+  // Refetch remounts the day row — wait for settled display before the next edit.
+  await expect(opening).toHaveValue(
+    new RegExp(
+      `${String(hours.openingHour).padStart(2, '0')}:?\\d{2}`,
+    ),
+  );
+  // Dismiss success snackbar so it does not block the next picker.
+  await page.keyboard.press('Escape').catch(() => undefined);
+
+  await setTimePickerValue(
+    page,
+    closing,
+    hours.closingHour,
+    hours.closingMinute ?? 0,
+  );
+  await expect(
+    page.getByText('Horario actualizado correctamente'),
+  ).toBeVisible({ timeout: 30_000 });
+}
+
+/** Reload Horarios and assert Apertura/Cierre textbox display values (HH:mm). */
+export async function expectCompanyDayHoursInPanel(
+  page: Page,
+  dayLabel: string,
+  openingDisplay: string,
+  closingDisplay: string,
+): Promise<void> {
+  await gotoConfiguration(page, 'Horarios');
+  const opening = dayOpeningField(page, dayLabel);
+  const closing = dayClosingField(page, dayLabel);
+  await expect(opening).toBeVisible({ timeout: 60_000 });
+  await expect(opening).toHaveValue(
+    new RegExp(openingDisplay.replace(':', '\\:?')),
+    { timeout: 30_000 },
+  );
+  await expect(closing).toHaveValue(
+    new RegExp(closingDisplay.replace(':', '\\:?')),
+  );
 }

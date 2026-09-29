@@ -1,21 +1,18 @@
 import { test, expect } from '../../fixtures/e2e';
-import {
-  deleteAppointmentFromProfessionalPanel,
-  expectAppointmentInProfessionalPanel,
-} from '../../src/appointments';
+import { expectAppointmentInProfessionalPanel } from '../../src/appointments';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
-test.describe('@journey book on public web and manage in professional panel', () => {
-  test('client books → appears in Reservas → can be deleted', async ({
+test.describe('@journey embed booking', () => {
+  test('embed funnel books → appears in Reservas', async ({
     createRecordedContext,
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
   }) => {
-    const clientName = uniqueLabel('E2E Client');
-    const phone = uniquePhone('099');
-    const email = uniqueEmail('e2e.client');
+    const clientName = uniqueLabel('E2E Embed');
+    const phone = uniquePhone('097');
+    const email = uniqueEmail('e2e.embed');
 
     const publicContext = await createRecordedContext();
     const publicPage = await publicContext.newPage();
@@ -24,6 +21,7 @@ test.describe('@journey book on public web and manage in professional panel', ()
       clientName,
       phone,
       email,
+      embed: true,
     });
 
     await expect(
@@ -31,11 +29,11 @@ test.describe('@journey book on public web and manage in professional panel', ()
         name: /reserva confirmada|pago exitoso|pago pendiente/i,
       }),
     ).toBeVisible();
+    await expect(publicPage).toHaveURL(/\/embed\//);
 
-    const professionalContext = await createRecordedContext();
-    const professionalPage = await professionalContext.newPage();
+    const panelContext = await createRecordedContext();
+    const panelPage = await panelContext.newPage();
 
-    await expectAppointmentInProfessionalPanel(professionalPage, clientName);
-    await deleteAppointmentFromProfessionalPanel(professionalPage, clientName);
+    await expectAppointmentInProfessionalPanel(panelPage, clientName);
   });
 });

@@ -17,6 +17,14 @@ test.describe('@auth @google professional Google login', () => {
       'Set E2E_GOOGLE_EMAIL and run `npm run chrome:google-auth` (CDP).',
     );
 
+    const cdpReachable = await fetch(`${env.e2eChromeCdpUrl}/json/version`)
+      .then((res) => res.ok)
+      .catch(() => false);
+    test.skip(
+      !cdpReachable,
+      'Chrome CDP not reachable — run `npm run chrome:google-auth` first.',
+    );
+
     const email = requireGoogleAuthEmail();
     const { browser, page } = await connectChromeViaCdp();
 

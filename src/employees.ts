@@ -79,12 +79,6 @@ export async function createCompanyEmployeeInPanel(
   await page.locator('#phone').fill(phone);
   await page.locator('#email').fill(options.email);
 
-  const capacityField = page.locator('#capacity');
-  await capacityField.click();
-  await capacityField.fill('');
-  await capacityField.pressSequentially(capacity, { delay: 15 });
-  await expect(capacityField).toHaveValue(capacity);
-
   await page.getByRole('combobox').nth(0).click();
   await page.getByRole('option', { name: role, exact: true }).click();
 
@@ -93,21 +87,36 @@ export async function createCompanyEmployeeInPanel(
   await page.getByRole('listbox').getByRole('button', { name: 'Cerrar' }).click();
   await expect(page.getByRole('listbox')).toHaveCount(0);
 
+  const capacityField = page.locator('#capacity');
+  await capacityField.click();
+  await capacityField.fill('');
+  await capacityField.pressSequentially(capacity, { delay: 15 });
+  await expect(capacityField).toHaveValue(capacity);
+
   const emailNotif = page.getByRole('checkbox', {
     name: 'Notificaciones por email',
   });
   const waNotif = page.getByRole('checkbox', {
     name: 'Notificaciones por WhatsApp',
   });
-  if (options.notifyEmail === false) {
-    await emailNotif.uncheck();
-  } else if (options.notifyEmail === true) {
-    await emailNotif.check();
+  if (options.notifyEmail === false && (await emailNotif.isChecked())) {
+    await emailNotif.click();
+  } else if (options.notifyEmail === true && !(await emailNotif.isChecked())) {
+    await emailNotif.click();
   }
-  if (options.notifyWhatsApp === false) {
-    await waNotif.uncheck();
-  } else if (options.notifyWhatsApp === true) {
-    await waNotif.check();
+  if (options.notifyWhatsApp === false && (await waNotif.isChecked())) {
+    await waNotif.click();
+  } else if (
+    options.notifyWhatsApp === true &&
+    !(await waNotif.isChecked())
+  ) {
+    await waNotif.click();
+  }
+  if (options.notifyEmail !== undefined) {
+    await expect(emailNotif).toBeChecked({ checked: options.notifyEmail });
+  }
+  if (options.notifyWhatsApp !== undefined) {
+    await expect(waNotif).toBeChecked({ checked: options.notifyWhatsApp });
   }
 
   const save = page.getByRole('button', { name: 'Guardar' });

@@ -13,10 +13,11 @@ export async function dismissHelpModalIfPresent(page: Page): Promise<void> {
 
 /**
  * Local Next.js issue badge / portal can intercept clicks on tabs and CTAs.
+ * Dev overlays may reappear after each navigation — call before critical clicks.
  */
 export async function dismissNextjsPortalIfPresent(page: Page): Promise<void> {
   await page.evaluate(() => {
-    document.querySelector('nextjs-portal')?.remove();
+    document.querySelectorAll('nextjs-portal').forEach((node) => node.remove());
   });
 }
 

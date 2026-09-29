@@ -36,13 +36,46 @@ export function runManageJson(
     );
   }
 
-  const start = combined.indexOf('{');
-  const end = combined.lastIndexOf('}');
-  if (start < 0 || end < 0) {
-    throw new Error(`${command} returned no JSON:\n${combined}`);
+  return extractJsonObject(combined, command);
+}
+
+/**
+ * Management commands often dump logs/HTML before the final `--json` payload
+ * (e.g. email bodies with many `{` / `}`). Prefer the last parseable object
+ * that begins at a line start.
+ */
+function extractJsonObject(
+  combined: string,
+  command: string,
+): Record<string, unknown> {
+  const starts: number[] = [];
+  for (let i = 0; i < combined.length; i += 1) {
+    if (combined[i] === '{' && (i === 0 || combined[i - 1] === '\n')) {
+      starts.push(i);
+    }
   }
 
-  return JSON.parse(combined.slice(start, end + 1)) as Record<string, unknown>;
+  for (let s = starts.length - 1; s >= 0; s -= 1) {
+    const start = starts[s]!;
+    let depth = 0;
+    for (let i = start; i < combined.length; i += 1) {
+      const ch = combined[i]!;
+      if (ch === '{') depth += 1;
+      else if (ch === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          const slice = combined.slice(start, i + 1);
+          try {
+            return JSON.parse(slice) as Record<string, unknown>;
+          } catch {
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  throw new Error(`${command} returned no JSON:\n${combined.slice(-2000)}`);
 }
 
 /**

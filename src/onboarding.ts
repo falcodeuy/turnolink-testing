@@ -106,7 +106,13 @@ async function pickDigitalClockTime(
   hourOption: string,
   minuteOption = '0 minutos',
 ): Promise<void> {
-  await page.getByRole('textbox', { name: 'hh:mm' }).nth(textboxIndex).click();
+  // TimeInput aria-label is "Apertura/Cierre horario <id>" (or plain Apertura/Cierre / hh:mm).
+  const field = page
+    .getByRole('textbox', {
+      name: /^(Apertura|Cierre)( franja 2)?( horario .+)?$|^hh:mm$/,
+    })
+    .nth(textboxIndex);
+  await field.click();
   await page.getByRole('option', { name: hourOption, exact: true }).click();
 
   const minute = page.getByRole('option', { name: minuteOption, exact: true });
@@ -119,9 +125,7 @@ async function pickDigitalClockTime(
     await ok.click();
   }
 
-  await expect(
-    page.getByRole('textbox', { name: 'hh:mm' }).nth(textboxIndex),
-  ).not.toHaveValue('');
+  await expect(field).not.toHaveValue('');
 }
 
 /** Day buttons are labeled L/M/M/J/V/S/D; scope by schedule row (7 buttons each). */
@@ -267,6 +271,8 @@ export async function runOnboardingJourney(
 }
 
 export async function expectOnboardingDashboard(page: Page): Promise<void> {
-  await expect(page.getByRole('link', { name: 'Escritorio' })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /Panel principal|Escritorio/ }),
+  ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('link', { name: 'Reservas' })).toBeVisible();
 }

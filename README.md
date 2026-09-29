@@ -144,7 +144,8 @@ data: `src/unique.ts`. Overlays: `src/overlays.ts`.
 
 Done: scaffold, auth, seed/reset/prepare, book→panel, Calendar, onboarding,
 create service, create employee/branch, company config (datos básicos + reservas
-online), production read-only, CLI, Hermes MCP.
+online + horarios), cancel / client / embed / multi-service / employee capacity
+journeys, production read-only, CLI, Hermes MCP.
 
-Next: more local journeys (cancel, embed, clients, calendar page, horarios,
-discounts); CI deferred; controlled production writes later.
+Next: calendar page, discounts, Medios de Pago / OAuth; CI deferred; controlled
+production writes later.

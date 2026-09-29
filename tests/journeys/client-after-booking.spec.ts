@@ -1,21 +1,18 @@
 import { test, expect } from '../../fixtures/e2e';
-import {
-  deleteAppointmentFromProfessionalPanel,
-  expectAppointmentInProfessionalPanel,
-} from '../../src/appointments';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
+import { expectClientInProfessionalPanel } from '../../src/clients';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
-test.describe('@journey book on public web and manage in professional panel', () => {
-  test('client books → appears in Reservas → can be deleted', async ({
+test.describe('@journey client appears after booking', () => {
+  test('public book → Clientes lists name email phone', async ({
     createRecordedContext,
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
   }) => {
-    const clientName = uniqueLabel('E2E Client');
-    const phone = uniquePhone('099');
-    const email = uniqueEmail('e2e.client');
+    const clientName = uniqueLabel('E2E Cliente');
+    const phone = uniquePhone('098');
+    const email = uniqueEmail('e2e.cliente');
 
     const publicContext = await createRecordedContext();
     const publicPage = await publicContext.newPage();
@@ -32,10 +29,13 @@ test.describe('@journey book on public web and manage in professional panel', ()
       }),
     ).toBeVisible();
 
-    const professionalContext = await createRecordedContext();
-    const professionalPage = await professionalContext.newPage();
+    const panelContext = await createRecordedContext();
+    const panelPage = await panelContext.newPage();
 
-    await expectAppointmentInProfessionalPanel(professionalPage, clientName);
-    await deleteAppointmentFromProfessionalPanel(professionalPage, clientName);
+    await expectClientInProfessionalPanel(panelPage, {
+      name: clientName,
+      email,
+      phone,
+    });
   });
 });

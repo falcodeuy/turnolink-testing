@@ -65,8 +65,9 @@ backend `e2e_prepare`. Parallel onboarding variants use distinct `--email` value
 
 - Default suite is `fullyParallel`. Created names/emails/phones → `src/unique.ts`.
 - **Safe in parallel:** create service / employee / branch / book→panel (unique data).
-- **Mutate shared company settings:** company-config basics + online booking — do not
-  overlap them with each other; restore when the helper can.
+- **Mutate shared company settings** (online booking flags, Horarios, interval):
+  use `try/finally` restore; run via `npm run test:journeys` (`--workers=1`) so
+  they do not overlap booking journeys that assume seed defaults.
 - **Onboarding:** always distinct prepare emails (already per variant).
 - **Friend/setup-style ordering is N/A** on web; prefer prepare over chaining
   journeys that depend on another spec’s side effects.
@@ -157,11 +158,14 @@ Calendar; onboarding (happy / domicilio / multi-schedule / images); create
 company service; create company employee (Manager + reopen detalle); create
 company branch (virtual + asignable a empleado); company config Datos básicos
 (persist + agenda pública Información); company config Reservas Online
-(intervalo al guardar + restore); production read-only.
+(intervalo al guardar + restore); company config Horarios (Apertura/Cierre via
+accessible names + restore); cancel appointment (Estado Cancelado); client after
+booking; embed booking; multi-service booking; employee capacity (aforo)
+journey; production read-only.
 
-**Next (local writes):** cancel appointment, embed, clients after booking,
-calendar page, company config Horarios (time picker), Medios de Pago / OAuth,
-discounts, Recursos compartidos, employee notif/aforo edge cases.
+**Next (local writes):** calendar page, Medios de Pago / OAuth, discounts,
+Recursos compartidos, richer employee notif edge cases.
 
-**Known product debt (testable-ui):** unlabeled comboboxes (services / employees /
-branches forms), icon-only row actions, booking calendar day cells.
+**Known product debt (testable-ui):** remaining unlabeled fields outside shared
+`Input` / `SelectInput` / `TimeInput`, icon-only row actions, booking calendar
+day cells.
