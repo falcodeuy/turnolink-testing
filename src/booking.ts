@@ -114,7 +114,9 @@ export async function bookAppointmentOnPublicWeb(
 
   await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
-  await expect(page.getByText(/tus datos/i)).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /tus datos/i }),
+  ).toBeVisible();
 
   await page.locator('#name').fill(input.clientName);
   await page.locator('#phone').fill(input.phone);
