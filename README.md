@@ -60,6 +60,7 @@ npm run e2e:prepare -- onboarding
 | Scenario | Purpose |
 |----------|---------|
 | `onboarding` | User at step 0 + company/branch (skips email verify). Distinct `--email` per parallel spec. |
+| `deposit-payments` | Shared tenant with fixed seña, cash/transfer, notification toggles for ledger journeys. |
 
 Guards: blocked when `DJANGO_ENV=production` unless `E2E_TOOLS_ENABLED=true`.
 Fixture patterns: plugin skill **`playwright-e2e-fixtures`** (web-testing).
