@@ -51,7 +51,11 @@ export async function openProfessionalLoginMidpoint(page: Page): Promise<void> {
   await expect(page.locator('#password')).toBeVisible();
 }
 
-/** Public booking preview with empty client fields (confirm should stay disabled). */
+/**
+ * Lands on public booking preview with empty client fields.
+ * Still walks availability → pre-checkout (no cheaper public deep-link yet);
+ * prefer panel/login midpoints when asserting non-funnel UI.
+ */
 export async function openBookingPreviewEmptyFormMidpoint(
   page: Page,
 ): Promise<void> {

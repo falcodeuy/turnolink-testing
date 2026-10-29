@@ -20,12 +20,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Prefer WORKERS env (aligned with e2e_platform_seed). CI defaults to 2.
-  workers: process.env.WORKERS
-    ? Math.max(1, Number(process.env.WORKERS) || 1)
-    : process.env.CI
-      ? 2
-      : undefined,
+  // Keep in sync with `npm run seed` (e2e_platform_seed --workers).
+  // Default 4 locally/CI so parallelIndex never exceeds seeded tenants.
+  workers: Math.max(
+    1,
+    Number(process.env.WORKERS ?? (process.env.CI ? '2' : '4')) || 1,
+  ),
   // Journeys (booking, onboarding, company config) commonly exceed 60s locally.
   timeout: 180_000,
   expect: { timeout: 15_000 },

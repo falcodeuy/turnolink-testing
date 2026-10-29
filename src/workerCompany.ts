@@ -55,7 +55,10 @@ export function getActiveWorkerCompany(): WorkerCompany | null {
 
 export function requireActiveWorkerCompany(): WorkerCompany {
   if (!active) {
-    return workerCompanyFor(0);
+    throw new Error(
+      'No active worker company. Import fixtures from fixtures/e2e.ts so ' +
+        '_workerCompany auto-sets the platform tenant for this worker.',
+    );
   }
   return active;
 }
