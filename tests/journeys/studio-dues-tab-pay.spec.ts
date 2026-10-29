@@ -27,6 +27,10 @@ test.describe('@journey studio cuotas pendientes pay', () => {
     });
     await expect(row).toBeVisible();
     await row.getByRole('checkbox', { name: `Marcar ${month} paga` }).click();
+    await expect(
+      page.getByRole('heading', { name: /Liquidar cuota/i }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Aceptar' }).click();
 
     await expect(
       page.getByText(new RegExp(`Cuota de ${month} marcada como paga`, 'i')),

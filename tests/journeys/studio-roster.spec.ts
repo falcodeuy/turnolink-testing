@@ -23,7 +23,10 @@ test.describe('@journey studio occurrence roster', () => {
     await expect(
       page.getByRole('heading', { name: 'Inscriptos', level: 2 }),
     ).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(STUDIO_FIXTURES.classTypeName).first()).toBeVisible();
+    const modal = page.locator('.MuiModal-root').filter({
+      has: page.getByRole('heading', { name: 'Inscriptos', level: 2 }),
+    });
+    await expect(modal.getByText(STUDIO_FIXTURES.classTypeName)).toBeVisible();
     await page.getByRole('button', { name: 'Cerrar' }).click();
   });
 });

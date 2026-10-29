@@ -35,6 +35,10 @@ test.describe('@journey studio membership plan create', () => {
 
     await page.locator('#planSessions').fill('1');
     await page.locator('#planPrice').fill('1500');
+
+    await page.getByRole('combobox', { name: 'Horizonte para mover clases' }).click();
+    await page.getByRole('option', { name: 'Misma semana' }).click();
+
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     await expect(page.getByText('Plan creado')).toBeVisible({
@@ -43,5 +47,6 @@ test.describe('@journey studio membership plan create', () => {
     await expect(page.getByText(planName, { exact: true })).toBeVisible({
       timeout: 30_000,
     });
+    await expect(page.getByText('Misma semana').first()).toBeVisible();
   });
 });

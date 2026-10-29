@@ -453,3 +453,30 @@ export async function bookMembershipOnPublicWeb(
 
   await fillPreviewAndConfirm(page, input);
 }
+
+/**
+ * Credit pack purchase against `e2e_prepare studio` fixtures.
+ */
+export async function bookCreditPackOnPublicWeb(
+  page: Page,
+  input: PublicBookingInput & { packName?: string },
+): Promise<void> {
+  assertNotProductionWriteContext('create a public credit pack purchase');
+
+  const packName = input.packName ?? 'E2E Pack 4';
+
+  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
+  await dismissNextjsPortalIfPresent(page);
+
+  const card = page.getByRole('button', {
+    name: `Pack de créditos: ${packName}`,
+  });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await dismissNextjsPortalIfPresent(page);
+  await card.click({ force: true });
+
+  await expect(page).toHaveURL(/\/services\/preview\/?$/, {
+    timeout: 60_000,
+  });
+  await fillPreviewAndConfirm(page, input);
+}

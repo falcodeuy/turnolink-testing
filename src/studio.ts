@@ -73,6 +73,13 @@ export async function filterMemberships(
   await search.fill(query);
 }
 
+async function confirmSettleDuesModal(page: Page): Promise<void> {
+  await expect(
+    page.getByRole('heading', { name: /Liquidar cuota/i }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Aceptar' }).click();
+}
+
 export async function markMembershipCurrentPeriod(
   page: Page,
   options: { paid: boolean; monthLabel?: string; memberName?: string },
@@ -91,6 +98,9 @@ export async function markMembershipCurrentPeriod(
   await expect(toggle).toBeVisible({ timeout: 30_000 });
   await expect(toggle).toBeEnabled();
   await toggle.click();
+  if (options.paid) {
+    await confirmSettleDuesModal(page);
+  }
   await expect(
     page.getByText(
       options.paid
@@ -121,6 +131,7 @@ export async function payDebtMembershipViaCuotasModal(
     .first();
   await expect(firstUnpaid).toBeVisible();
   await firstUnpaid.click();
+  await confirmSettleDuesModal(page);
 
   await expect(page.getByText(/marcada como paga/i)).toBeVisible({
     timeout: 30_000,
