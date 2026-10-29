@@ -66,7 +66,10 @@ export async function bookAppointmentOnPublicWeb(
   // while that mutation is in flight (double handleNext breaks availability).
   const availabilityUrl = /\/services\/availability\/?$/;
   if (variants.length > 1) {
-    const nextOnServices = page.getByRole('button', { name: 'Siguiente' });
+    const nextOnServices = page.getByRole('button', {
+      name: 'Siguiente',
+      exact: true,
+    });
     await expect(nextOnServices).toBeEnabled({ timeout: 30_000 });
     await nextOnServices.click();
   }
@@ -74,7 +77,10 @@ export async function bookAppointmentOnPublicWeb(
   try {
     await expect(page).toHaveURL(availabilityUrl, { timeout: 30_000 });
   } catch {
-    const nextOnServices = page.getByRole('button', { name: 'Siguiente' });
+    const nextOnServices = page.getByRole('button', {
+      name: 'Siguiente',
+      exact: true,
+    });
     await expect(nextOnServices).toBeEnabled({ timeout: 15_000 });
     await nextOnServices.click();
     await expect(page).toHaveURL(availabilityUrl, { timeout: 60_000 });
@@ -94,7 +100,7 @@ export async function bookAppointmentOnPublicWeb(
   const slotLabel = ((await firstSlot.textContent()) || '').trim();
   await firstSlot.click();
 
-  const next = page.getByRole('button', { name: 'Siguiente' });
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
   await expect(next).toBeEnabled();
 
   const preCheckoutResponse = page.waitForResponse(
@@ -114,7 +120,9 @@ export async function bookAppointmentOnPublicWeb(
 
   await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
-  await expect(page.getByText(/tus datos/i)).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /tus datos/i }),
+  ).toBeVisible();
 
   await page.locator('#name').fill(input.clientName);
   await page.locator('#phone').fill(input.phone);
@@ -168,17 +176,13 @@ export async function expectPublicSlotAvailability(
     timeout: 60_000,
   });
 
-  let selectable = await listSelectableDayNumbers(page);
+  let selectable = await listAvailableDayNumbers(page);
   if (!selectable.includes(options.dayNumber)) {
-    await page
-      .locator('button')
-      .filter({ has: page.locator('svg') })
-      .last()
-      .click();
-    await expect(page.getByText('No disponible')).toBeVisible({
-      timeout: 30_000,
-    });
-    selectable = await listSelectableDayNumbers(page);
+    await page.getByRole('button', { name: 'Mes siguiente' }).click();
+    await expect(
+      page.getByRole('button', { name: /^Día \d+ disponible$/ }).first(),
+    ).toBeVisible({ timeout: 30_000 });
+    selectable = await listAvailableDayNumbers(page);
   }
   if (!selectable.includes(options.dayNumber)) {
     throw new Error(
@@ -196,44 +200,34 @@ export async function expectPublicSlotAvailability(
   }
 }
 
-async function listSelectableDayNumbers(page: Page): Promise<number[]> {
-  return page.evaluate(() => {
-    const nodes = [
-      ...document.querySelectorAll('.MuiTypography-body2'),
-    ].filter((node) => /^\d{1,2}$/.test((node.textContent || '').trim()));
-
-    const days: number[] = [];
-    for (const node of nodes) {
-      if (getComputedStyle(node).textDecorationLine.includes('line-through')) {
-        continue;
-      }
-      const value = Number((node.textContent || '').trim());
-      if (!Number.isNaN(value)) {
-        days.push(value);
-      }
-    }
-    return days;
-  });
+async function listAvailableDayNumbers(page: Page): Promise<number[]> {
+  const buttons = page.getByRole('button', { name: /^Día \d+ disponible$/ });
+  const count = await buttons.count();
+  const days: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const label = (await buttons.nth(i).getAttribute('aria-label')) || '';
+    const match = label.match(/Día (\d+)/);
+    if (match) days.push(Number(match[1]));
+  }
+  return days;
 }
 
 async function clickCalendarDay(page: Page, dayNumber: number): Promise<void> {
-  const dayLabel = page
-    .locator('.MuiTypography-body2')
-    .filter({ hasText: new RegExp(`^${dayNumber}$`) });
-
-  const dayCell = dayLabel.locator(
-    'xpath=ancestor::div[contains(@class,"MuiBox-root")][1]',
-  );
+  const dayButton = page.getByRole('button', {
+    name: `Día ${dayNumber} disponible`,
+  });
+  await expect(dayButton).toBeVisible({ timeout: 30_000 });
 
   const dayAvailability = page.waitForResponse(
     (response) =>
       response.url().includes('day-availability') &&
-      response.request().method() === 'POST' &&
-      response.ok(),
+      response.ok() &&
+      (response.request().method() === 'POST' ||
+        response.request().method() === 'GET'),
     { timeout: 60_000 },
   );
 
-  await dayCell.click();
+  await dayButton.click();
   await dayAvailability;
 
   await expect(
@@ -246,27 +240,29 @@ async function clickCalendarDay(page: Page, dayNumber: number): Promise<void> {
 
 async function selectFirstAvailableDay(page: Page): Promise<number> {
   await dismissNextjsPortalIfPresent(page);
-  await expect(page.getByText('No disponible')).toBeVisible({
-    timeout: 60_000,
+
+  const availableDay = page.getByRole('button', {
+    name: /^Día \d+ disponible$/,
   });
 
+  if ((await availableDay.count()) === 0) {
+    await page.getByRole('button', { name: 'Mes siguiente' }).click();
+  }
+
+  await expect(availableDay.first()).toBeVisible({ timeout: 60_000 });
+
   const todayDay = new Date().getDate();
-  let selectable = await listSelectableDayNumbers(page);
+  let selectable = await listAvailableDayNumbers(page);
 
   let pick =
     selectable.find((day) => day > todayDay) ??
-    selectable.find((day) => day === todayDay);
+    selectable.find((day) => day === todayDay) ??
+    selectable[0];
 
   if (pick === undefined) {
-    await page
-      .locator('button')
-      .filter({ has: page.locator('svg') })
-      .last()
-      .click();
-    await expect(page.getByText('No disponible')).toBeVisible({
-      timeout: 30_000,
-    });
-    selectable = await listSelectableDayNumbers(page);
+    await page.getByRole('button', { name: 'Mes siguiente' }).click();
+    await expect(availableDay.first()).toBeVisible({ timeout: 30_000 });
+    selectable = await listAvailableDayNumbers(page);
     pick = selectable[0];
   }
 
@@ -276,4 +272,184 @@ async function selectFirstAvailableDay(page: Page): Promise<number> {
 
   await clickCalendarDay(page, pick);
   return pick;
+}
+
+async function fillPreviewAndConfirm(
+  page: Page,
+  input: Pick<PublicBookingInput, 'clientName' | 'phone' | 'email'>,
+): Promise<void> {
+  await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
+  await expect(
+    page.getByRole('heading', { name: /tus datos/i }),
+  ).toBeVisible();
+
+  await page.locator('#name').fill(input.clientName);
+  await page.locator('#phone').fill(input.phone);
+  if (input.email) {
+    await page.locator('#email').fill(input.email);
+  }
+
+  const confirm = page.getByRole('button', { name: /confirmar|pagar/i });
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+
+  await expect(page).toHaveURL(/\/payment\?/, { timeout: 60_000 });
+  await expect(
+    page.getByRole('heading', {
+      name: /reserva confirmada|pago exitoso|pago pendiente|membresía|inscripción/i,
+    }),
+  ).toBeVisible({ timeout: 60_000 });
+}
+
+/**
+ * Multi-session (cuponera) booking against `e2e_prepare package` fixtures.
+ */
+export async function bookPackageOnPublicWeb(
+  page: Page,
+  input: PublicBookingInput & { variantName?: string; sessionCount?: number },
+): Promise<PublicBookingResult> {
+  assertNotProductionWriteContext('create a public package booking');
+
+  const variantName = input.variantName ?? '2 sesiones';
+  const sessionCount = input.sessionCount ?? 2;
+
+  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
+  await dismissNextjsPortalIfPresent(page);
+
+  const variant = page.getByText(variantName, { exact: true }).first();
+  await expect(variant).toBeVisible({ timeout: 60_000 });
+  await dismissNextjsPortalIfPresent(page);
+  await variant.click({ force: true });
+
+  await expect(page).toHaveURL(/\/services\/availability\/?$/, {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByText(new RegExp(`sesión 1 de ${sessionCount}`, 'i')),
+  ).toBeVisible({ timeout: 60_000 });
+
+  const dayNumber = await selectFirstAvailableDay(page);
+  const firstSlot = page.getByText(/^\d{2}:\d{2}$/).first();
+  await expect(firstSlot).toBeVisible({ timeout: 30_000 });
+  const slotLabel = ((await firstSlot.textContent()) || '').trim();
+  await firstSlot.click();
+
+  for (let session = 2; session <= sessionCount; session += 1) {
+    await expect(
+      page.getByText(new RegExp(`sesión ${session} de ${sessionCount}`, 'i')),
+    ).toBeVisible({ timeout: 60_000 });
+    const nextSlot = page.getByText(/^\d{2}:\d{2}$/).first();
+    await expect(nextSlot).toBeVisible({ timeout: 60_000 });
+    await nextSlot.click();
+  }
+
+  await expect(
+    page.getByText(/todas las sesiones tienen fecha/i),
+  ).toBeVisible({ timeout: 30_000 });
+
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await expect(next).toBeEnabled({ timeout: 30_000 });
+  await next.click();
+
+  await fillPreviewAndConfirm(page, input);
+  return { slotLabel, dayNumber };
+}
+
+/**
+ * Drop-in class booking against `e2e_prepare studio` fixtures.
+ */
+export async function bookDropInClassOnPublicWeb(
+  page: Page,
+  input: PublicBookingInput & { classTypeName?: string },
+): Promise<PublicBookingResult> {
+  assertNotProductionWriteContext('create a public drop-in booking');
+
+  const classTypeName = input.classTypeName ?? 'E2E Pilates';
+
+  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
+  await dismissNextjsPortalIfPresent(page);
+
+  const card = page.getByRole('button', {
+    name: `Clase suelta: ${classTypeName}`,
+  });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await dismissNextjsPortalIfPresent(page);
+  await card.click({ force: true });
+
+  await expect(page).toHaveURL(/\/services\/class-availability\/?$/, {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole('heading', { name: /disponibilidad/i }),
+  ).toBeVisible();
+
+  const dayNumber = await selectFirstAvailableDay(page);
+  const firstSlot = page.getByText(/^\d{2}:\d{2}$/).first();
+  await expect(firstSlot).toBeVisible({ timeout: 30_000 });
+  const slotLabel = ((await firstSlot.textContent()) || '').trim();
+  await firstSlot.click();
+
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await expect(next).toBeEnabled({ timeout: 30_000 });
+  await next.click();
+
+  await fillPreviewAndConfirm(page, input);
+  return { slotLabel, dayNumber };
+}
+
+/**
+ * Membership signup against `e2e_prepare studio` fixtures.
+ */
+export async function bookMembershipOnPublicWeb(
+  page: Page,
+  input: PublicBookingInput & {
+    planName?: string;
+    sessionsPerWeek?: number;
+  },
+): Promise<void> {
+  assertNotProductionWriteContext('create a public membership signup');
+
+  const planName = input.planName ?? 'E2E 2x semana';
+  const sessionsPerWeek = input.sessionsPerWeek ?? 2;
+
+  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
+  await dismissNextjsPortalIfPresent(page);
+
+  const card = page.getByRole('button', { name: `Membresía: ${planName}` });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await dismissNextjsPortalIfPresent(page);
+  await card.click({ force: true });
+
+  await expect(page).toHaveURL(/\/services\/membership\/?$/, {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole('heading', { name: /tu semana fija/i }),
+  ).toBeVisible();
+
+  const seriesButtons = page.getByRole('button').filter({
+    has: page.getByText(/^\d{2}:\d{2}$/),
+  });
+  await expect(seriesButtons.first()).toBeVisible({ timeout: 60_000 });
+
+  const count = await seriesButtons.count();
+  if (count < sessionsPerWeek) {
+    throw new Error(
+      `Need ${sessionsPerWeek} weekly series slots, found ${count}`,
+    );
+  }
+  for (let i = 0; i < sessionsPerWeek; i += 1) {
+    await seriesButtons.nth(i).click();
+  }
+
+  await expect(page.getByText(/listo · seguí al checkout/i)).toBeVisible({
+    timeout: 15_000,
+  });
+
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await expect(next).toBeEnabled({ timeout: 15_000 });
+  await next.click();
+
+  await fillPreviewAndConfirm(page, input);
 }
