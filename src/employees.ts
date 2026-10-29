@@ -33,11 +33,17 @@ async function gotoCompanyEquipo(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole('tab', { name: 'Equipo' }).click();
-  await expect(page.getByRole('tab', { name: 'Equipo' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  const tab = page.getByRole('tab', { name: 'Equipo', exact: true });
+  await expect(tab).toBeVisible({ timeout: 30_000 });
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await page.getByRole('button', { name: /Agregar|Nuevo/i }).first().isVisible().catch(() => false)) {
+      break;
+    }
+    await tab.click({ force: true });
+  }
+  await expect(
+    page.getByRole('button', { name: /Agregar|Nuevo|empleado/i }).first(),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 /** First icon button on the employee row opens the edit modal. */

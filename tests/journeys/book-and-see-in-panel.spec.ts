@@ -1,13 +1,13 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
-  deleteAppointmentFromProfessionalPanel,
+  cancelAppointmentInProfessionalPanel,
   expectAppointmentInProfessionalPanel,
 } from '../../src/appointments';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey book on public web and manage in professional panel', () => {
-  test('client books → appears in Reservas → can be deleted', async ({
+  test('client books → appears in Reservas → can be cancelled', async ({
     createRecordedContext,
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
@@ -36,6 +36,6 @@ test.describe('@journey book on public web and manage in professional panel', ()
     const professionalPage = await professionalContext.newPage();
 
     await expectAppointmentInProfessionalPanel(professionalPage, clientName);
-    await deleteAppointmentFromProfessionalPanel(professionalPage, clientName);
+    await cancelAppointmentInProfessionalPanel(professionalPage, clientName);
   });
 });

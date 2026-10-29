@@ -30,16 +30,15 @@ test.describe('@journey studio enrollment action cancel link', () => {
     });
 
     await expect(
-      page.getByRole('button', { name: 'Cancelar esta clase' }),
+      page.getByRole('button', { name: 'Sí, cancelar' }),
     ).toBeVisible({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Cancelar esta clase' }).click();
+    await page.getByRole('button', { name: 'Sí, cancelar' }).click();
     await expect(page.getByText(/inscripción cancelada|cancelad/i)).toBeVisible(
       {
         timeout: 30_000,
       },
     );
 
-    // Cancel notification should land in Mailpit when SMTP is wired to it.
     try {
       const message = await waitForMailpitMessage('cancelada', {
         timeoutMs: 15_000,

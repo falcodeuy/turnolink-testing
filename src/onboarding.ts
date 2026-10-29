@@ -3,7 +3,10 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { prepareE2eScenario } from './djangoManage';
 import type { ProfessionalCredentials } from './env';
-import { dismissHelpModalIfPresent } from './overlays';
+import {
+  dismissHelpModalIfPresent,
+  dismissReferralNudgeIfPresent,
+} from './overlays';
 import { loginProfessionalViaUi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
 
@@ -259,6 +262,7 @@ export async function completeProfessionalOnboarding(
     page.getByRole('heading', { name: /¡felicidades!/i }),
   ).toBeVisible({ timeout: 60_000 });
   await expect(page).toHaveURL(/\/portal\/dashboard/, { timeout: 30_000 });
+  await dismissReferralNudgeIfPresent(page);
 }
 
 export async function runOnboardingJourney(
@@ -271,6 +275,7 @@ export async function runOnboardingJourney(
 }
 
 export async function expectOnboardingDashboard(page: Page): Promise<void> {
+  await dismissReferralNudgeIfPresent(page);
   await expect(
     page.getByRole('link', { name: /Panel principal|Escritorio/ }),
   ).toBeVisible({ timeout: 30_000 });

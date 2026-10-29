@@ -27,27 +27,24 @@ test.describe('@journey studio credit pack consume on drop-in', () => {
       email,
       packName: 'E2E Pack 4',
     });
-    await expect(
-      page.getByRole('heading', {
-        name: /reserva confirmada|pago exitoso|pago pendiente|inscripción|compra/i,
-      }),
-    ).toBeVisible({ timeout: 60_000 });
 
     await bookDropInClassOnPublicWeb(page, {
       clientName,
       phone,
       email,
       classTypeName: 'E2E Pilates',
+      confirmation: 'direct_confirmation',
     });
 
-    // paid_with_credit → preview maps to direct_confirmation (not pending_at_studio).
+    await expect(page).toHaveURL(/paymentStatus=direct_confirmation/);
     await expect(
-      page.getByRole('heading', {
-        name: /reserva confirmada|pago exitoso|inscripción/i,
-      }),
-    ).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(/pendiente de pago|pagarás al profesional/i)).toHaveCount(
-      0,
-    );
+      page.getByRole('heading', { name: /¡?reserva confirmada!?/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /inscripción confirmada/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText(/el pago se coordina en el estudio/i),
+    ).toHaveCount(0);
   });
 });

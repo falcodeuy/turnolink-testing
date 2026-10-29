@@ -2,7 +2,10 @@ import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { e2eCompanySlug } from './booking';
-import { dismissNextjsPortalIfPresent } from './overlays';
+import {
+  dismissNextjsPortalIfPresent,
+  dismissReferralNudgeIfPresent,
+} from './overlays';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
 
@@ -19,6 +22,32 @@ export type OnlineBookingSettings = {
   notifyClientsEmail?: boolean;
 };
 
+async function configurationTabReady(
+  page: Page,
+  tab: 'Datos básicos' | 'Reservas Online' | 'Horarios' | 'Medios de Pago',
+): Promise<boolean> {
+  switch (tab) {
+    case 'Datos básicos':
+      return page.locator('#companyName').isVisible().catch(() => false);
+    case 'Reservas Online':
+      return page
+        .getByText(/Cómo quieres recibir reservas/i)
+        .isVisible()
+        .catch(() => false);
+    case 'Horarios':
+      return page
+        .getByRole('heading', { name: 'Tus Horarios' })
+        .isVisible()
+        .catch(() => false);
+    case 'Medios de Pago':
+      return true;
+    default: {
+      const _exhaustive: never = tab;
+      throw new Error(`Unhandled configuration tab: ${_exhaustive}`);
+    }
+  }
+}
+
 async function gotoConfiguration(
   page: Page,
   tab: 'Datos básicos' | 'Reservas Online' | 'Horarios' | 'Medios de Pago',
@@ -26,6 +55,9 @@ async function gotoConfiguration(
   await page.goto(`${apps.professional()}/portal/configuration`, {
     waitUntil: 'domcontentloaded',
   });
+  await dismissReferralNudgeIfPresent(page);
+  await dismissNextjsPortalIfPresent(page);
+  await page.keyboard.press('Escape').catch(() => undefined);
   await expect(page.getByRole('heading', { name: 'Configuración' })).toBeVisible({
     timeout: 60_000,
   });
@@ -33,13 +65,19 @@ async function gotoConfiguration(
     timeout: 30_000,
   });
 
-  const tabButton = page.getByRole('tab', { name: tab });
-  await dismissNextjsPortalIfPresent(page);
+  const tabButton = page.getByRole('tab', { name: tab, exact: true });
   await expect(tabButton).toBeVisible({ timeout: 30_000 });
-  await tabButton.click();
-  await expect(tabButton).toHaveAttribute('aria-selected', 'true', {
-    timeout: 15_000,
-  });
+
+  // Assert by panel content: snackbar/overlays can swallow the first click, and
+  // aria-selected can stay false even when the tab panel is already showing.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (await configurationTabReady(page, tab)) {
+      break;
+    }
+    await dismissNextjsPortalIfPresent(page);
+    await page.keyboard.press('Escape').catch(() => undefined);
+    await tabButton.click({ force: true });
+  }
 
   switch (tab) {
     case 'Datos básicos':
@@ -362,29 +400,52 @@ async function setTimePickerValue(
   await expect(hoursList).toBeHidden({ timeout: 10_000 });
 }
 
-/** MUI digital clock may need a nudge before the option is actionable. */
+/** MUI digital clock may need a nudge; labels vary (es/en, singular/plural). */
 async function pickDigitalClockOption(
   listbox: Locator,
   accessibleName: string,
   paddedLabel: string,
 ): Promise<void> {
-  const byRole = listbox.getByRole('option', {
-    name: accessibleName,
-    exact: true,
-  });
-  for (let i = 0; i < 24; i += 1) {
-    if ((await byRole.count()) > 0) {
-      await byRole.evaluate((el) =>
-        el.scrollIntoView({ block: 'center', inline: 'nearest' }),
-      );
-      await byRole.click({ force: true });
-      return;
+  const hour = Number.parseInt(paddedLabel, 10);
+  const nameCandidates = Array.from(
+    new Set([
+      accessibleName,
+      `${hour} horas`,
+      `${hour} hora`,
+      `${hour} hours`,
+      `${hour} hour`,
+      paddedLabel,
+      String(hour),
+    ]),
+  );
+
+  for (let i = 0; i < 30; i += 1) {
+    for (const name of nameCandidates) {
+      const byRole = listbox.getByRole('option', { name, exact: true });
+      if ((await byRole.count()) > 0) {
+        await byRole.first().evaluate((el: HTMLElement) => {
+          el.scrollIntoView({ block: 'center', inline: 'nearest' });
+          el.click();
+        });
+        return;
+      }
+      const byText = listbox.getByText(name, { exact: true });
+      if ((await byText.count()) > 0) {
+        await byText.first().evaluate((el: HTMLElement) => {
+          el.scrollIntoView({ block: 'center', inline: 'nearest' });
+          el.click();
+        });
+        return;
+      }
     }
     await listbox.evaluate((el, delta) => {
       el.scrollTop += delta;
-    }, i < 12 ? 56 : -56);
+    }, i < 15 ? 56 : -56);
   }
-  await listbox.getByText(paddedLabel, { exact: true }).click({ force: true });
+
+  throw new Error(
+    `Digital clock option not found for ${accessibleName} / ${paddedLabel}`,
+  );
 }
 
 export type CompanyDayHours = {

@@ -68,7 +68,7 @@ export async function createCompanyServiceInPanel(
     timeout: 60_000,
   });
   await expect(
-    page.getByRole('button', { name: 'Crear nuevo servicio' }),
+    page.getByRole('button', { name: /Crear otro|Crear nuevo servicio/i }),
   ).toBeVisible();
 }
 

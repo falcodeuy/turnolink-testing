@@ -25,10 +25,7 @@ test.describe('@journey studio credit pack public purchase', () => {
       packName: 'E2E Pack 4',
     });
 
-    await expect(
-      publicPage.getByRole('heading', {
-        name: /reserva confirmada|pago exitoso|pago pendiente|inscripción|compra/i,
-      }),
-    ).toBeVisible({ timeout: 60_000 });
+    await expect(publicPage).toHaveURL(/paymentStatus=pending/);
+    await expect(publicPage).not.toHaveURL(/paymentStatus=direct_confirmation/);
   });
 });

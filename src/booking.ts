@@ -274,9 +274,36 @@ async function selectFirstAvailableDay(page: Page): Promise<number> {
   return pick;
 }
 
+/** Prefer a timed slot with open seats (credits / drop-in need CONFIRMED, not waitlist). */
+async function selectFirstOpenClassSlot(page: Page): Promise<string> {
+  const timeSlots = page.getByText(/^\d{2}:\d{2}$/);
+  await expect(timeSlots.first()).toBeVisible({ timeout: 30_000 });
+  const count = await timeSlots.count();
+
+  for (let i = 0; i < count; i += 1) {
+    const slot = timeSlots.nth(i);
+    const slotLabel = ((await slot.textContent()) || '').trim();
+    await slot.click();
+    const openSeats = page.getByText(/\d+\s+lugares/);
+    if ((await openSeats.count()) > 0) {
+      return slotLabel;
+    }
+  }
+
+  throw new Error(
+    'No class slot with open seats found (all waitlist). Re-run e2e_prepare studio.',
+  );
+}
+
+export type PublicConfirmationKind =
+  | 'any'
+  | 'direct_confirmation'
+  | 'pending_at_studio';
+
 async function fillPreviewAndConfirm(
   page: Page,
   input: Pick<PublicBookingInput, 'clientName' | 'phone' | 'email'>,
+  confirmation: PublicConfirmationKind = 'any',
 ): Promise<void> {
   await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
@@ -294,10 +321,37 @@ async function fillPreviewAndConfirm(
   await expect(confirm).toBeEnabled();
   await confirm.click();
 
+  if (confirmation === 'direct_confirmation') {
+    await expect(page).toHaveURL(/paymentStatus=direct_confirmation/, {
+      timeout: 60_000,
+    });
+    await expect(
+      page.getByRole('heading', { name: /¡?reserva confirmada!?/i }),
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(
+      page.getByText(/el pago se coordina en el estudio/i),
+    ).toHaveCount(0);
+    return;
+  }
+
+  if (confirmation === 'pending_at_studio') {
+    // Checkout routes pending packs/memberships with paymentStatus=pending.
+    // Payment page copy may show "¡Reserva confirmada!" when the company has
+    // automaticConfirmation without Mercado Pago (display remap, not MP).
+    await expect(page).toHaveURL(/paymentStatus=pending/, { timeout: 60_000 });
+    await expect(page).not.toHaveURL(/paymentStatus=direct_confirmation/);
+    await expect(
+      page.getByRole('heading', {
+        name: /reserva confirmada|inscripción confirmada|pago pendiente|compra/i,
+      }),
+    ).toBeVisible({ timeout: 60_000 });
+    return;
+  }
+
   await expect(page).toHaveURL(/\/payment\?/, { timeout: 60_000 });
   await expect(
     page.getByRole('heading', {
-      name: /reserva confirmada|pago exitoso|pago pendiente|membresía|inscripción/i,
+      name: /reserva confirmada|pago exitoso|pago pendiente|membresía|inscripción|compra/i,
     }),
   ).toBeVisible({ timeout: 60_000 });
 }
@@ -361,7 +415,10 @@ export async function bookPackageOnPublicWeb(
  */
 export async function bookDropInClassOnPublicWeb(
   page: Page,
-  input: PublicBookingInput & { classTypeName?: string },
+  input: PublicBookingInput & {
+    classTypeName?: string;
+    confirmation?: PublicConfirmationKind;
+  },
 ): Promise<PublicBookingResult> {
   assertNotProductionWriteContext('create a public drop-in booking');
 
@@ -385,16 +442,13 @@ export async function bookDropInClassOnPublicWeb(
   ).toBeVisible();
 
   const dayNumber = await selectFirstAvailableDay(page);
-  const firstSlot = page.getByText(/^\d{2}:\d{2}$/).first();
-  await expect(firstSlot).toBeVisible({ timeout: 30_000 });
-  const slotLabel = ((await firstSlot.textContent()) || '').trim();
-  await firstSlot.click();
+  const slotLabel = await selectFirstOpenClassSlot(page);
 
   const next = page.getByRole('button', { name: 'Siguiente', exact: true });
   await expect(next).toBeEnabled({ timeout: 30_000 });
   await next.click();
 
-  await fillPreviewAndConfirm(page, input);
+  await fillPreviewAndConfirm(page, input, input.confirmation ?? 'any');
   return { slotLabel, dayNumber };
 }
 
@@ -478,5 +532,5 @@ export async function bookCreditPackOnPublicWeb(
   await expect(page).toHaveURL(/\/services\/preview\/?$/, {
     timeout: 60_000,
   });
-  await fillPreviewAndConfirm(page, input);
+  await fillPreviewAndConfirm(page, input, 'pending_at_studio');
 }
