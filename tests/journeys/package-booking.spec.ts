@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import { bookPackageOnPublicWeb } from '../../src/booking';
-import { prepareE2eScenario } from '../../src/djangoManage';
+import { prepareE2eScenarioForSlug } from '../../src/djangoManage';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey package (cuponera) booking', () => {
@@ -8,8 +8,9 @@ test.describe('@journey package (cuponera) booking', () => {
     createRecordedContext,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
+    workerCompany,
   }) => {
-    prepareE2eScenario('package');
+    prepareE2eScenarioForSlug('package', workerCompany.slug);
 
     const clientName = uniqueLabel('E2E Package');
     const phone = uniquePhone('097');

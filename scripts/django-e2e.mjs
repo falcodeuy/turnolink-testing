@@ -21,9 +21,11 @@ loadDotenv({ path: path.join(root, '.env') });
 
 const COMMANDS = {
   seed: 'e2e_seed',
+  'platform-seed': 'e2e_platform_seed',
   reset: 'e2e_reset',
   // One manage command for all journey fixtures — pass scenario as next arg.
   prepare: 'e2e_prepare',
+  run: 'e2e_run',
   'calendar-status': 'e2e_calendar_status',
   'verify-calendar': 'e2e_verify_calendar',
 };

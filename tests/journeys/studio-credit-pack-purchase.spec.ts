@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import { bookCreditPackOnPublicWeb } from '../../src/booking';
-import { prepareE2eScenario } from '../../src/djangoManage';
+import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey studio credit pack public purchase', () => {
@@ -8,8 +8,9 @@ test.describe('@journey studio credit pack public purchase', () => {
     createRecordedContext,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
+    workerCompany: _workerCompany,
   }) => {
-    prepareE2eScenario('studio');
+    prepareStudioFixtures();
 
     const clientName = uniqueLabel('E2E PackBuyer');
     const phone = uniquePhone('097');

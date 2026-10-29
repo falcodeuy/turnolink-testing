@@ -81,10 +81,19 @@ function extractJsonObject(
 /**
  * Journey fixtures via a single Django command (`e2e_prepare <scenario>`).
  * Add scenarios in backend `companies.e2e` + `e2e_prepare.SCENARIOS` — not new npm scripts.
+ * Pass `--slug` for package/studio/deposit when using platform-per-worker tenants.
  */
 export function prepareE2eScenario(
   scenario: string,
   extraArgs: string[] = [],
 ): Record<string, unknown> {
   return runManageJson('e2e_prepare', [scenario, ...extraArgs]);
+}
+
+export function prepareE2eScenarioForSlug(
+  scenario: string,
+  slug: string,
+  extraArgs: string[] = [],
+): Record<string, unknown> {
+  return prepareE2eScenario(scenario, ['--slug', slug, ...extraArgs]);
 }

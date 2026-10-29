@@ -3,9 +3,21 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { newRecordedContext } from '../src/browser';
 import { env } from '../src/env';
 import {
+  e2eBegin,
+  e2eEnd,
+  e2eFactory,
+  type E2eFactoryName,
+} from '../src/e2eRun';
+import { buildRunId } from '../src/e2eRunId';
+import {
   hasProfessionalCredentials,
   loginProfessionalViaApi,
 } from '../src/professionalAuth';
+import {
+  setActiveWorkerCompany,
+  workerCompanyFor,
+  type WorkerCompany,
+} from '../src/workerCompany';
 
 /**
  * Shared Playwright fixtures for reproducible E2E journeys.
@@ -25,6 +37,14 @@ import {
  *     …
  *   });
  */
+
+export type E2eApi = {
+  runId: string;
+  worker: number;
+  company: WorkerCompany;
+  trackName: (...names: Array<string | undefined | null>) => void;
+  factory: (name: E2eFactoryName) => Record<string, unknown>;
+};
 
 type E2eFixtures = {
   /** One recorded context; closed automatically after the test. */
@@ -51,13 +71,57 @@ type E2eFixtures = {
    */
   seededProfessional: void;
   /**
-   * Opt-in: skip unless `E2E_ALLOWED_COMPANY_SLUG` is set (booking tenant).
+   * Opt-in: skip unless a company slug is configured (booking tenant).
    */
   seededCompany: void;
+  /** Active platform tenant for this worker (slug + owner credentials). */
+  workerCompany: WorkerCompany;
+  /**
+   * Per-test owned-resource API (`e2e_run begin/factory/end`).
+   * Always tears down leases even when the test fails.
+   */
+  e2e: E2eApi;
 };
 
-export const test = base.extend<E2eFixtures>({
-  recordedContext: async ({ browser }, use) => {
+type E2eWorkerFixtures = {
+  _workerCompany: WorkerCompany;
+};
+
+export const test = base.extend<E2eFixtures, E2eWorkerFixtures>({
+  _workerCompany: [
+    async ({}, use, workerInfo) => {
+      const company = workerCompanyFor(workerInfo.parallelIndex);
+      setActiveWorkerCompany(company);
+      await use(company);
+    },
+    { scope: 'worker', auto: true },
+  ],
+
+  workerCompany: async ({ _workerCompany }, use) => {
+    setActiveWorkerCompany(_workerCompany);
+    await use(_workerCompany);
+  },
+
+  e2e: async ({ workerCompany }, use, testInfo) => {
+    const runId = buildRunId(testInfo);
+    const owned: string[] = [];
+    e2eBegin(runId, workerCompany.worker, testInfo.title);
+    const api: E2eApi = {
+      runId,
+      worker: workerCompany.worker,
+      company: workerCompany,
+      trackName: (...names) => {
+        for (const name of names) {
+          if (name?.trim()) owned.push(name.trim());
+        }
+      },
+      factory: (name) => e2eFactory(runId, name, workerCompany.worker),
+    };
+    await use(api);
+    e2eEnd(runId, owned);
+  },
+
+  recordedContext: async ({ browser, workerCompany: _wc }, use) => {
     const context = await newRecordedContext(browser);
     await use(context);
     await context.close();
@@ -76,7 +140,7 @@ export const test = base.extend<E2eFixtures>({
     await use(recordedPage);
   },
 
-  createRecordedContext: async ({ browser }, use) => {
+  createRecordedContext: async ({ browser, workerCompany: _wc }, use) => {
     const opened: BrowserContext[] = [];
     const create = async (): Promise<BrowserContext> => {
       const context = await newRecordedContext(browser);
@@ -99,7 +163,7 @@ export const test = base.extend<E2eFixtures>({
   ],
 
   seededProfessional: [
-    async ({}, use) => {
+    async ({ workerCompany: _wc }, use) => {
       test.skip(
         !hasProfessionalCredentials(),
         'Set E2E_PROFESSIONAL_EMAIL and E2E_PROFESSIONAL_PASSWORD (run npm run seed)',
@@ -110,10 +174,10 @@ export const test = base.extend<E2eFixtures>({
   ],
 
   seededCompany: [
-    async ({}, use) => {
+    async ({ workerCompany }, use) => {
       test.skip(
-        !env.e2eAllowedCompanySlug,
-        'Set E2E_ALLOWED_COMPANY_SLUG (default turnolink-e2e after seed)',
+        !workerCompany.slug && !env.e2eAllowedCompanySlug,
+        'Set E2E_ALLOWED_COMPANY_SLUG or run e2e_platform_seed',
       );
       await use();
     },

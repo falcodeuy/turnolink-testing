@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import { apps } from '../../src/apps';
-import { prepareE2eScenario } from '../../src/djangoManage';
+import { prepareStudioFixtures } from '../../src/studio';
 import { waitForMailpitMessage } from '../../src/mailpit';
 
 test.describe('@journey studio enrollment action cancel link', () => {
@@ -8,8 +8,9 @@ test.describe('@journey studio enrollment action cancel link', () => {
     createRecordedContext,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
+    workerCompany: _workerCompany,
   }) => {
-    const prepared = prepareE2eScenario('studio');
+    const prepared = prepareStudioFixtures();
     const cancelPath = prepared.enrollment_action_cancel_url as
       | string
       | undefined;

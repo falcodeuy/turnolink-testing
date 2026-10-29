@@ -20,7 +20,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Prefer WORKERS env (aligned with e2e_platform_seed). CI defaults to 2.
+  workers: process.env.WORKERS
+    ? Math.max(1, Number(process.env.WORKERS) || 1)
+    : process.env.CI
+      ? 2
+      : undefined,
   // Journeys (booking, onboarding, company config) commonly exceed 60s locally.
   timeout: 180_000,
   expect: { timeout: 15_000 },

@@ -3,7 +3,7 @@ import {
   bookCreditPackOnPublicWeb,
   bookDropInClassOnPublicWeb,
 } from '../../src/booking';
-import { prepareE2eScenario } from '../../src/djangoManage';
+import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey studio credit pack consume on drop-in', () => {
@@ -11,8 +11,9 @@ test.describe('@journey studio credit pack consume on drop-in', () => {
     createRecordedContext,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
+    workerCompany: _workerCompany,
   }) => {
-    prepareE2eScenario('studio');
+    prepareStudioFixtures();
 
     const clientName = uniqueLabel('E2E CreditUser');
     const phone = uniquePhone('096');

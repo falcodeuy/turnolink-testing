@@ -4,9 +4,14 @@ import { apps } from './apps';
 import { env } from './env';
 import { dismissNextjsPortalIfPresent } from './overlays';
 import { assertNotProductionWriteContext } from './safety';
+import { requireActiveWorkerCompany } from './workerCompany';
 
 export function e2eCompanySlug(): string {
-  return env.e2eAllowedCompanySlug || 'turnolink-e2e';
+  return (
+    requireActiveWorkerCompany().slug ||
+    env.e2eAllowedCompanySlug ||
+    'turnolink-e2e'
+  );
 }
 
 export type PublicBookingInput = {
@@ -34,14 +39,14 @@ function servicesBasePath(embed: boolean): string {
 }
 
 /**
- * Complete the public (or embed) booking funnel for the seeded E2E company.
- * Default: single variant auto-advance and one employee (skip).
+ * Walk the public (or embed) funnel to `/services/preview` without confirming.
+ * Useful for screen-validation midpoints.
  */
-export async function bookAppointmentOnPublicWeb(
+export async function navigateToBookingPreview(
   page: Page,
-  input: PublicBookingInput,
+  input: Pick<PublicBookingInput, 'variantName' | 'variantNames' | 'embed'> = {},
 ): Promise<PublicBookingResult> {
-  assertNotProductionWriteContext('create a public booking');
+  assertNotProductionWriteContext('open public booking preview');
 
   const embed = Boolean(input.embed);
   const variants =
@@ -57,13 +62,10 @@ export async function bookAppointmentOnPublicWeb(
   for (const variantName of variants) {
     const variant = page.getByText(variantName, { exact: true }).first();
     await expect(variant).toBeVisible({ timeout: 60_000 });
-    // nextjs-portal (dev error overlay) often intercepts normal clicks locally.
     await dismissNextjsPortalIfPresent(page);
     await variant.click({ force: true });
   }
 
-  // Single variant auto-advances via onVariantSelect → do not click Siguiente
-  // while that mutation is in flight (double handleNext breaks availability).
   const availabilityUrl = /\/services\/availability\/?$/;
   if (variants.length > 1) {
     const nextOnServices = page.getByRole('button', {
@@ -124,6 +126,21 @@ export async function bookAppointmentOnPublicWeb(
     page.getByRole('heading', { name: /tus datos/i }),
   ).toBeVisible();
 
+  return { slotLabel, dayNumber };
+}
+
+/**
+ * Complete the public (or embed) booking funnel for the seeded E2E company.
+ * Default: single variant auto-advance and one employee (skip).
+ */
+export async function bookAppointmentOnPublicWeb(
+  page: Page,
+  input: PublicBookingInput,
+): Promise<PublicBookingResult> {
+  assertNotProductionWriteContext('create a public booking');
+
+  const result = await navigateToBookingPreview(page, input);
+
   await page.locator('#name').fill(input.clientName);
   await page.locator('#phone').fill(input.phone);
   if (input.email) {
@@ -141,7 +158,7 @@ export async function bookAppointmentOnPublicWeb(
     }),
   ).toBeVisible({ timeout: 60_000 });
 
-  return { slotLabel, dayNumber };
+  return result;
 }
 
 /**

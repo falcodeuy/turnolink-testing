@@ -24,13 +24,42 @@ Install from **company-agent-toolkit** marketplace (Cursor Customize / Claude
 If those plugins are missing, stop and tell the user. Do not vendor generic
 Playwright docs or a second product skill copy in this repo.
 
+Authors editing the toolkit live: from `company-agent-toolkit` run
+`./scripts/link-local-plugins` (symlinks into `~/.cursor/plugins/local`), then
+reload the Cursor window.
+
 ## Ownership
 
 | Repo | Owns |
 |------|------|
 | `turnolink-testing` | Specs, helpers, fixtures, `.env.example`, explore/smoke scripts |
 | `turnolink-web` / `turnolink-professional-web` | Accessible names, labels, sparse `data-testid` |
-| `turnolink-backend` | Idempotent `e2e_seed` / `e2e_prepare` and stable fixture names |
+| `turnolink-backend` | Idempotent `e2e_seed` / `e2e_platform_seed` / `e2e_prepare` / `e2e_run` and stable fixture names |
+
+## Layers (cheapest that proves the behavior)
+
+| Layer | Path | Tag |
+|-------|------|-----|
+| Smoke | `tests/smoke/` | `@smoke` |
+| Auth | `tests/auth/` | `@auth` |
+| Screen validation | `tests/screen-validation/` | `@screen` |
+| Journeys | `tests/journeys/` | `@journey` |
+| Integrations | `tests/integrations/` | `@integration` |
+
+New UI guards → **screen-validation midpoint first**. Tip-to-tip journey only when
+the failure mode needs full-stack wiring (money, cupo, cross-app). Catalog:
+[docs/test-cases.md](docs/test-cases.md).
+
+## Agent liquidate loop
+
+Physical journeys are slow. When iterating with an agent:
+
+1. Start with a **bounded** lote (file, folder, or `--grep`).
+2. On failure → diagnose (CLI on the stuck screen) → one fix → **re-run only
+   that spec**.
+3. Continue with **remaining not-yet-green** tests; do not re-run ones that
+   already passed in the session.
+4. Full suite only when the user explicitly asks, or when closing an E2E epic/PR.
 
 ## Fast path (create / extend a journey)
 
@@ -76,15 +105,20 @@ Product detail lives in the **turnolink-e2e** toolkit skill (and its `references
 - **A click that does not change the screen** is usually an overlay (`nextjs-portal`, help modal). Call helpers in `src/overlays.ts`.
 - **Do not add `waitForTimeout` / `sleep`.**
 - **Created data must be unique under `fullyParallel`.** Use `src/unique.ts`.
-- **Shared seed mutators** (Horarios, multi-service, interval): `try/finally` restore; `npm run test:journeys` uses `--workers=1`.
+- **Isolation:** platform company per worker (`e2e_platform_seed` /
+  fixture `workerCompany`); owned rows via `e2e` fixture begin/end when used.
+  Mutators (Horarios, multi, interval) prefer the worker company + restore.
 - **Panel-only journeys:** prefer fixture `loggedInProfessionalPage`.
 - **Suite timeout is 180s** in `playwright.config.ts`.
+- **Workers:** `WORKERS` env drives `npm run seed` and journey/screen scripts
+  (default 4). CI uses `WORKERS` or config default 2; shard with
+  `npx playwright test --shard=1/2` when splitting machines.
 
 ## Quality bar
 
 Explore with CLI first. Specs stay thin; logic lives in helpers. Tags: `@smoke` /
-`@auth` / `@journey`. Integrations under `tests/integrations/` — opt-in. Local
-writes only; production read-only. Skip OAuth / Mercado Pago unless dedicated.
-Run the changed test before claiming done.
+`@auth` / `@screen` / `@journey`. Integrations under `tests/integrations/` —
+opt-in. Local writes only; production read-only. Skip OAuth / Mercado Pago
+unless dedicated. Run the changed test before claiming done.
 
 Human setup: [README.md](README.md).

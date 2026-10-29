@@ -7,8 +7,17 @@ import {
 } from './api/auth';
 import { env, type ProfessionalCredentials } from './env';
 import { assertNotProductionWriteContext } from './safety';
+import { getActiveWorkerCompany } from './workerCompany';
 
 export function requireProfessionalCredentials(): ProfessionalCredentials {
+  const worker = getActiveWorkerCompany();
+  if (worker?.ownerEmail && worker.ownerPassword) {
+    return {
+      email: worker.ownerEmail,
+      password: worker.ownerPassword,
+    };
+  }
+
   if (!env.e2eProfessionalEmail || !env.e2eProfessionalPassword) {
     throw new Error(
       'Missing E2E_PROFESSIONAL_EMAIL / E2E_PROFESSIONAL_PASSWORD in .env. ' +
@@ -23,6 +32,10 @@ export function requireProfessionalCredentials(): ProfessionalCredentials {
 }
 
 export function hasProfessionalCredentials(): boolean {
+  const worker = getActiveWorkerCompany();
+  if (worker?.ownerEmail && worker.ownerPassword) {
+    return true;
+  }
   return Boolean(env.e2eProfessionalEmail && env.e2eProfessionalPassword);
 }
 

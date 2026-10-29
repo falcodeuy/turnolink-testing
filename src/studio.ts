@@ -1,9 +1,10 @@
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
-import { prepareE2eScenario } from './djangoManage';
+import { prepareE2eScenarioForSlug } from './djangoManage';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { requireActiveWorkerCompany } from './workerCompany';
 
 export const STUDIO_FIXTURES = {
   classTypeName: 'E2E Pilates',
@@ -31,7 +32,10 @@ export function currentPeriodLabel(date = new Date()): string {
 }
 
 export function prepareStudioFixtures(): Record<string, unknown> {
-  return prepareE2eScenario('studio');
+  return prepareE2eScenarioForSlug(
+    'studio',
+    requireActiveWorkerCompany().slug,
+  );
 }
 
 export async function openStudioTab(

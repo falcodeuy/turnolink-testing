@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import { bookDropInClassOnPublicWeb } from '../../src/booking';
-import { prepareE2eScenario } from '../../src/djangoManage';
+import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey studio drop-in class', () => {
@@ -8,8 +8,9 @@ test.describe('@journey studio drop-in class', () => {
     createRecordedContext,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
+    workerCompany: _workerCompany,
   }) => {
-    prepareE2eScenario('studio');
+    prepareStudioFixtures();
 
     const clientName = uniqueLabel('E2E DropIn');
     const phone = uniquePhone('098');
