@@ -1,26 +1,15 @@
-import type { Page, Route } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures/e2e';
 import { apps } from '../../../src/apps';
 import { bookAppointmentOnPublicWeb } from '../../../src/booking';
 import { loginProfessionalViaApi } from '../../../src/professionalAuth';
 import { prepareStudioFixtures } from '../../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../../src/unique';
-
-const COMPANY_ROUTE = /\/companies\/\d+\/?$/;
-
-type BlockedTime = {
-  id: number;
-  employee: number;
-  employee_name: string;
-  employee_email: string;
-  title: string;
-  start_datetime: string;
-  end_datetime: string;
-  google_event_id: string | null;
-  from_calendar: boolean;
-  created_at: string;
-  updated_at: string;
-};
+import {
+  COMPANY_ROUTE,
+  interceptBlockedTimes,
+  interceptBusinessMode,
+} from '../../support/calendarApi';
 
 async function openCalendar(page: Page): Promise<void> {
   await loginProfessionalViaApi(page);
@@ -43,62 +32,6 @@ function localDate(): string {
   return `${year}-${month}-${day}`;
 }
 
-async function interceptBlockedTimes(
-  page: Page,
-  initial: BlockedTime[],
-): Promise<void> {
-  const blockedTimes = [...initial];
-
-  await page.route('**/companies/*/blocked_times/**', async (route: Route) => {
-    const request = route.request();
-
-    if (request.method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          next: null,
-          previous: null,
-          count: blockedTimes.length,
-          results: blockedTimes,
-        }),
-      });
-      return;
-    }
-
-    if (request.method() === 'POST') {
-      const payload = request.postDataJSON() as {
-        employee: number;
-        title: string;
-        start_datetime: string;
-        end_datetime: string;
-      };
-      const created: BlockedTime = {
-        id: 91_001,
-        employee: payload.employee,
-        employee_name: 'E2E Owner',
-        employee_email: 'e2e-owner@turnolink.local',
-        title: payload.title,
-        start_datetime: payload.start_datetime,
-        end_datetime: payload.end_datetime,
-        google_event_id: null,
-        from_calendar: false,
-        created_at: payload.start_datetime,
-        updated_at: payload.start_datetime,
-      };
-      blockedTimes.push(created);
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(created),
-      });
-      return;
-    }
-
-    await route.continue();
-  });
-}
-
 async function chooseHour(
   page: Page,
   fieldName: 'Hora inicio' | 'Hora fin',
@@ -118,25 +51,6 @@ async function chooseHour(
   await picker.getByRole('button', { name: 'OK' }).click();
   await expect(picker).toBeHidden();
   await expect(field).toHaveValue(`${String(hour).padStart(2, '0')}:00`);
-}
-
-async function interceptBusinessMode(
-  page: Page,
-  mode: 'appointments' | 'studio',
-): Promise<void> {
-  await page.route(COMPANY_ROUTE, async (route) => {
-    const response = await route.fetch();
-    const company = (await response.json()) as Record<string, unknown>;
-    await route.fulfill({
-      response,
-      json: {
-        ...company,
-        business_mode: mode,
-        offers_appointments: mode === 'appointments',
-        offers_studio: mode === 'studio',
-      },
-    });
-  });
 }
 
 test.describe('@screen Calendar residual states', () => {
@@ -240,22 +154,11 @@ test.describe('@screen Calendar residual states', () => {
 
     const publicContext = await createRecordedContext();
     const publicPage = await publicContext.newPage();
-    const booking = bookAppointmentOnPublicWeb(publicPage, {
+    await bookAppointmentOnPublicWeb(publicPage, {
       clientName,
       phone: uniquePhone('098'),
       email: uniqueEmail('calendar.client'),
     });
-    const owner = publicPage.getByRole('button', {
-      name: 'Seleccionar profesional E2E Owner',
-    });
-    const needsEmployee = await Promise.race([
-      booking.then(() => false),
-      owner.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true),
-    ]);
-    if (needsEmployee) {
-      await owner.click();
-    }
-    await booking;
 
     const page = loggedInProfessionalPage;
     await interceptBusinessMode(page, 'studio');

@@ -25,7 +25,6 @@ export async function clickTabUntilReady(
   await page.keyboard.press('Escape');
   await tab.scrollIntoViewIfNeeded();
   await expect(tab).toBeEnabled();
-  await tab.focus();
-  await tab.press('Enter');
+  await tab.click();
   await expect.poll(isReady, { timeout: timeoutMs }).toBe(true);
 }

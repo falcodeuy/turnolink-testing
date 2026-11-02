@@ -4,76 +4,11 @@ import {
   openCompanyScreen,
   selectCompanyTab,
 } from '../../../src/companyScreens';
-
-const diagnosticEndpoint = '**/schedule/booking-diagnostic/';
-
-const bookableResponse = {
-  bookable: true,
-  code: 'bookable',
-  summary: 'El horario está disponible con E2E Owner.',
-  duration_minutes: 30,
-  available_employee: { id: 148, name: 'E2E Owner' },
-  reasons: [],
-  employees: [
-    {
-      bookable: true,
-      employee: { id: 148, name: 'E2E Owner' },
-      reasons: [],
-    },
-  ],
-  checks: {
-    company_active: true,
-    branch_enabled: true,
-    duration_minutes: 30,
-    requested_datetime: '2030-01-15T10:00:00-03:00',
-    min_booking_datetime: '2030-01-01T00:00:00-03:00',
-    max_booking_datetime: '2030-03-01T00:00:00-03:00',
-    employees_resolved: 1,
-  },
-};
-
-const unbookableResponse = {
-  bookable: false,
-  code: 'no_available_employee',
-  summary: 'El horario no está disponible para la combinación seleccionada.',
-  duration_minutes: 30,
-  available_employee: null,
-  reasons: [
-    {
-      code: 'no_available_employee',
-      severity: 'blocking',
-      scope: 'global',
-      message: 'Ningún profesional puede tomar ese horario.',
-    },
-  ],
-  employees: [
-    {
-      bookable: false,
-      employee: { id: 148, name: 'E2E Owner' },
-      reasons: [
-        {
-          code: 'outside_company_hours',
-          severity: 'blocking',
-          scope: 'employee',
-          message:
-            'Este profesional usa el horario general de la empresa, pero ese horario no cubre la hora consultada.',
-          employee: { id: 148, name: 'E2E Owner' },
-          start: '2030-01-15T09:00:00-03:00',
-          end: '2030-01-15T18:00:00-03:00',
-        },
-      ],
-    },
-  ],
-  checks: {
-    company_active: true,
-    branch_enabled: true,
-    duration_minutes: 30,
-    requested_datetime: '2030-01-15T08:00:00-03:00',
-    min_booking_datetime: '2030-01-01T00:00:00-03:00',
-    max_booking_datetime: '2030-03-01T00:00:00-03:00',
-    employees_resolved: 1,
-  },
-};
+import {
+  bookableResponse,
+  diagnosticEndpoint,
+  unbookableResponse,
+} from '../../support/bookingDiagnosticApi';
 
 async function openBookingDiagnostic(page: Page): Promise<void> {
   await openCompanyScreen(page);

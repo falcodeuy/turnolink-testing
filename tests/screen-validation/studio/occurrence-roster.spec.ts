@@ -1,4 +1,4 @@
-import type { Page, Request } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures/e2e';
 import {
   STUDIO_FIXTURES,
@@ -6,44 +6,15 @@ import {
   openStudioTab,
   prepareStudioFixtures,
 } from '../../../src/studio';
-
-type EnrollmentStatus =
-  | 'confirmed'
-  | 'waitlist'
-  | 'checked_in'
-  | 'cancelled'
-  | 'no_show';
-
-type Enrollment = {
-  id: number;
-  client_name: string;
-  client_phone: string;
-  status: EnrollmentStatus;
-};
-
-type Client = {
-  id: number;
-  name: string;
-};
-
-const enrollmentRoute =
-  '**/companies/*/class-occurrences/*/enrollments/';
-const cancellationRoute =
-  '**/companies/*/class-enrollments/*/cancel/';
-const clientsRoute = '**/companies/*/clients*';
-
-function enrollment(
-  id: number,
-  clientName: string,
-  status: EnrollmentStatus = 'confirmed',
-): Enrollment {
-  return {
-    id,
-    client_name: clientName,
-    client_phone: `+549110000${id}`,
-    status,
-  };
-}
+import {
+  type Client,
+  type Enrollment,
+  enrollment,
+  isEnrollmentMutation,
+  mockCancellationApi,
+  mockClientSearch,
+  mockEnrollmentApi,
+} from '../../support/occurrenceRosterApi';
 
 async function openRoster(page: Page): Promise<void> {
   prepareStudioFixtures();
@@ -54,39 +25,12 @@ async function openRoster(page: Page): Promise<void> {
   ).toBeVisible();
 }
 
-async function mockClientSearch(page: Page, client: Client): Promise<void> {
-  await page.route(clientsRoute, async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.continue();
-      return;
-    }
-
-    await route.fulfill({
-      json: {
-        count: 1,
-        next: null,
-        previous: null,
-        results: [client],
-      },
-    });
-  });
-}
-
 async function selectClient(page: Page, client: Client): Promise<void> {
   const search = page.getByRole('textbox', {
     name: 'Escribí al menos 2 letras…',
   });
   await search.fill(client.name);
   await page.getByRole('button', { name: client.name, exact: true }).click();
-}
-
-function isEnrollmentMutation(request: Request): boolean {
-  return (
-    request.method() === 'POST' &&
-    /\/class-occurrences\/[^/]+\/enrollments\/$/.test(
-      new URL(request.url()).pathname,
-    )
-  );
 }
 
 test.describe('@screen studio occurrence roster', () => {
@@ -98,11 +42,9 @@ test.describe('@screen studio occurrence roster', () => {
     const page = loggedInProfessionalPage;
     const cancelledName = 'E2E Inscripción Cancelada';
 
-    await page.route(enrollmentRoute, (route) =>
-      route.fulfill({
-        json: [enrollment(9001, cancelledName, 'cancelled')],
-      }),
-    );
+    await mockEnrollmentApi(page, [
+      enrollment(9001, cancelledName, 'cancelled'),
+    ]);
 
     await openRoster(page);
 
@@ -132,15 +74,7 @@ test.describe('@screen studio occurrence roster', () => {
     const added = enrollment(9201, client.name);
 
     await mockClientSearch(page, client);
-    await page.route(enrollmentRoute, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ json: roster });
-        return;
-      }
-
-      roster.push(added);
-      await route.fulfill({ json: added });
-    });
+    await mockEnrollmentApi(page, roster, added);
 
     await openRoster(page);
     await selectClient(page, client);
@@ -176,15 +110,7 @@ test.describe('@screen studio occurrence roster', () => {
     const waitlisted = enrollment(9401, client.name, 'waitlist');
 
     await mockClientSearch(page, client);
-    await page.route(enrollmentRoute, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ json: roster });
-        return;
-      }
-
-      roster.push(waitlisted);
-      await route.fulfill({ json: waitlisted });
-    });
+    await mockEnrollmentApi(page, roster, waitlisted);
 
     await openRoster(page);
     await expect(
@@ -216,13 +142,8 @@ test.describe('@screen studio occurrence roster', () => {
     const clientName = 'E2E Cliente a Sacar';
     const roster = [enrollment(9501, clientName)];
 
-    await page.route(enrollmentRoute, (route) =>
-      route.fulfill({ json: roster }),
-    );
-    await page.route(cancellationRoute, async (route) => {
-      roster[0].status = 'cancelled';
-      await route.fulfill({ json: roster[0] });
-    });
+    await mockEnrollmentApi(page, roster);
+    await mockCancellationApi(page, roster);
 
     await openRoster(page);
     await expect(page.getByText(clientName, { exact: true })).toBeVisible();
@@ -249,18 +170,7 @@ test.describe('@screen studio occurrence roster', () => {
     };
 
     await mockClientSearch(page, client);
-    await page.route(enrollmentRoute, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ json: [] });
-        return;
-      }
-
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: '{}',
-      });
-    });
+    await mockEnrollmentApi(page, [], { status: 500 });
 
     await openRoster(page);
     await selectClient(page, client);
