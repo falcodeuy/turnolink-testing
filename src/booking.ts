@@ -56,7 +56,7 @@ async function waitForReactHydration(control: Locator): Promise<void> {
     .toBe(true);
 }
 
-async function reachAppointmentAvailability(
+export async function reachAppointmentAvailability(
   page: Page,
   serviceCard?: Locator,
 ): Promise<void> {

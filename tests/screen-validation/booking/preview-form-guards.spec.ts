@@ -2,7 +2,7 @@ import { test, expect } from '../../../fixtures/e2e';
 import { openBookingPreviewEmptyFormMidpoint } from '../../../src/screenMidpoints';
 
 test.describe('@screen @validation booking preview form guards', () => {
-  test('requires contact fields and a full name before confirming', async ({
+  test('validates required contact fields, full name, and optional email', async ({
     recordedPage,
     localWrites: _localWrites,
     seededCompany: _seededCompany,
@@ -18,7 +18,7 @@ test.describe('@screen @validation booking preview form guards', () => {
 
     await expect(name).toHaveAttribute('required', '');
     await expect(phone).toHaveAttribute('required', '');
-    await expect(email).toHaveAttribute('required', '');
+    await expect(email).not.toHaveAttribute('required', '');
     await expect(confirm).toBeVisible();
     await expect(confirm).toBeDisabled();
 
@@ -30,22 +30,27 @@ test.describe('@screen @validation booking preview form guards', () => {
     await email.blur();
     await expect(
       recordedPage.getByText('Este campo es requerido', { exact: true }),
-    ).toHaveCount(3);
+    ).toHaveCount(2);
 
     await name.fill('Ana');
     await phone.fill('099123123');
-    await email.fill('email-invalido');
-    await email.blur();
-    await expect(
-      recordedPage.getByText('Ingresá un email válido', { exact: true }),
-    ).toBeVisible();
+    await name.blur();
     await expect(
       recordedPage.getByText('Ingresá nombre y apellido', { exact: true }),
     ).toBeVisible();
     await expect(confirm).toBeDisabled();
 
-    await email.fill('ana@example.test');
     await name.fill('Ana Pérez');
+    await expect(confirm).toBeEnabled();
+
+    await email.fill('email-invalido');
+    await email.blur();
+    await expect(
+      recordedPage.getByText('Ingresá un email válido', { exact: true }),
+    ).toBeVisible();
+    await expect(confirm).toBeDisabled();
+
+    await email.fill('ana@example.test');
     await expect(confirm).toBeEnabled();
   });
 

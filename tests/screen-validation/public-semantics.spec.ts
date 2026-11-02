@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures/e2e';
+import { reachAppointmentAvailability } from '../../src/booking';
 import { openPublicServicesMidpoint } from '../../src/screenMidpoints';
 
 test.describe('@screen public selection semantics', () => {
@@ -30,10 +31,10 @@ test.describe('@screen public selection semantics', () => {
     seededCompany: _seededCompany,
   }) => {
     await openPublicServicesMidpoint(page);
-    await page.getByRole('button', { name: 'Servicio: 30 min' }).click();
-    await expect(page).toHaveURL(/\/services\/availability\/?$/, {
-      timeout: 60_000,
-    });
+    await reachAppointmentAvailability(
+      page,
+      page.getByRole('button', { name: 'Servicio: 30 min' }),
+    );
     await expect(
       page.getByRole('heading', { name: 'Disponibilidad' }),
     ).toBeVisible();

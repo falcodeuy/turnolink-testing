@@ -60,7 +60,11 @@ test.describe('@journey studio membership dues panel', () => {
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
   }) => {
-    prepareStudioFixtures();
+    const fixtures = prepareStudioFixtures();
+    const debtOpenPeriods = fixtures.debt_open_periods;
+    if (typeof debtOpenPeriods !== 'number') {
+      throw new Error('Studio fixture did not return debt_open_periods');
+    }
     const page = loggedInProfessionalPage;
     await openStudioTab(page, 'memberships');
 
@@ -72,6 +76,6 @@ test.describe('@journey studio membership dues panel', () => {
       page.getByRole('row', {
         name: new RegExp(STUDIO_FIXTURES.debtMemberName, 'i'),
       }),
-    ).toHaveCount(3);
+    ).toHaveCount(debtOpenPeriods);
   });
 });
