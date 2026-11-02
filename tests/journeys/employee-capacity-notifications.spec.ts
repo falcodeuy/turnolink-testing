@@ -25,7 +25,7 @@ test.describe('@journey employee capacity and notifications', () => {
     await createCompanyEmployeeInPanel(panelPage, {
       name: employeeName,
       email: employeeEmail,
-      phone: '099333444',
+      phone: uniquePhone(),
       role: 'Empleado',
       branch: 'E2E Branch',
       notifyEmail: false,

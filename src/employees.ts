@@ -4,6 +4,7 @@ import { apps } from './apps';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
 import { clickTabUntilReady } from './tabs';
+import { uniquePhone } from './unique';
 
 export type CreateCompanyEmployeeOptions = {
   name: string;
@@ -79,7 +80,7 @@ export async function createCompanyEmployeeInPanel(
 ): Promise<void> {
   assertNotProductionWriteContext('create a company employee');
 
-  const phone = options.phone ?? '099111222';
+  const phone = options.phone ?? uniquePhone();
   const role = options.role ?? 'Empleado';
   const branch = options.branch ?? 'E2E Branch';
   const capacity = options.capacity ?? '1';
