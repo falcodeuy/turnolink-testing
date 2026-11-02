@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { clickTabUntilReady } from './tabs';
 
 export type CreateCompanyBranchOptions = {
   name: string;
@@ -14,6 +15,36 @@ export type CreateCompanyBranchOptions = {
   virtualCare?: boolean;
 };
 
+async function companyTabReady(
+  page: Page,
+  tabName: 'Sucursales' | 'Equipo',
+): Promise<boolean> {
+  const onServicios = await page
+    .locator('#search-service')
+    .isVisible()
+    .catch(() => false);
+  if (onServicios) return false;
+  if (tabName === 'Sucursales') {
+    return page
+      .getByText('E2E Branch', { exact: true })
+      .isVisible()
+      .catch(() => false);
+  }
+  return page
+    .getByText('E2E Owner', { exact: true })
+    .isVisible()
+    .catch(() => false);
+}
+
+async function selectCompanyTab(
+  page: Page,
+  tabName: 'Sucursales' | 'Equipo',
+): Promise<void> {
+  // "Agregar nuevo" is shared across Empresa tabs — do not use it as ready signal.
+  const tab = page.getByRole('tab', { name: tabName, exact: true });
+  await clickTabUntilReady(page, tab, () => companyTabReady(page, tabName));
+}
+
 async function gotoCompanySucursales(page: Page): Promise<void> {
   await page.goto(`${apps.professional()}/portal/my-company`, {
     waitUntil: 'domcontentloaded',
@@ -21,22 +52,12 @@ async function gotoCompanySucursales(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible({
     timeout: 60_000,
   });
-  const tab = page.getByRole('tab', { name: 'Sucursales', exact: true });
-  await expect(tab).toBeVisible({ timeout: 30_000 });
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (
-      await page
-        .getByRole('button', { name: 'Agregar nuevo' })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      break;
-    }
-    await tab.click({ force: true });
-  }
-  await expect(page.getByRole('button', { name: 'Agregar nuevo' })).toBeVisible({
-    timeout: 30_000,
-  });
+  await selectCompanyTab(page, 'Sucursales');
+  await expect(page.getByRole('button', { name: 'Agregar nuevo' })).toBeVisible(
+    {
+      timeout: 30_000,
+    },
+  );
 }
 
 /**
@@ -102,21 +123,12 @@ export async function expectBranchSelectableForNewEmployee(
     timeout: 60_000,
   });
 
-  const tab = page.getByRole('tab', { name: 'Equipo', exact: true });
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (
-      await page
-        .getByRole('button', { name: 'Agregar nuevo' })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      break;
-    }
-    await tab.click({ force: true });
-  }
-  await expect(page.getByRole('button', { name: 'Agregar nuevo' })).toBeVisible({
-    timeout: 30_000,
-  });
+  await selectCompanyTab(page, 'Equipo');
+  await expect(page.getByRole('button', { name: 'Agregar nuevo' })).toBeVisible(
+    {
+      timeout: 30_000,
+    },
+  );
 
   await page.getByRole('button', { name: 'Agregar nuevo' }).click();
   await expect(
@@ -127,7 +139,10 @@ export async function expectBranchSelectableForNewEmployee(
   await expect(
     page.getByRole('option', { name: branchName, exact: true }),
   ).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('listbox').getByRole('button', { name: 'Cerrar' }).click();
+  await page
+    .getByRole('listbox')
+    .getByRole('button', { name: 'Cerrar' })
+    .click();
   await expect(page.getByRole('listbox')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Cerrar' }).click();

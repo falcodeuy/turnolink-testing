@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
   STUDIO_FIXTURES,
+  openStudioEnrollmentsChip,
   openStudioTab,
   prepareStudioFixtures,
 } from '../../src/studio';
@@ -14,15 +15,8 @@ test.describe('@journey studio occurrence roster', () => {
     prepareStudioFixtures();
     const page = loggedInProfessionalPage;
     await openStudioTab(page, 'schedule');
+    await openStudioEnrollmentsChip(page, 'Lunes');
 
-    await page
-      .getByRole('button', { name: /Ver inscriptos \d+ de \d+/ })
-      .first()
-      .click();
-
-    await expect(
-      page.getByRole('heading', { name: 'Inscriptos', level: 2 }),
-    ).toBeVisible({ timeout: 30_000 });
     const modal = page.locator('.MuiModal-root').filter({
       has: page.getByRole('heading', { name: 'Inscriptos', level: 2 }),
     });

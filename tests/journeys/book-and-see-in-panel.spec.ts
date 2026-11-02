@@ -4,6 +4,7 @@ import {
   expectAppointmentInProfessionalPanel,
 } from '../../src/appointments';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
+import { prepareE2eScenarioForSlug } from '../../src/djangoManage';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey book on public web and manage in professional panel', () => {
@@ -12,7 +13,9 @@ test.describe('@journey book on public web and manage in professional panel', ()
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
+    workerCompany,
   }) => {
+    prepareE2eScenarioForSlug('appointment', workerCompany.slug);
     const clientName = uniqueLabel('E2E Client');
     const phone = uniquePhone('099');
     const email = uniqueEmail('e2e.client');

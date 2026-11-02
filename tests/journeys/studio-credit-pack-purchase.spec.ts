@@ -3,7 +3,8 @@ import { bookCreditPackOnPublicWeb } from '../../src/booking';
 import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
-test.describe('@journey studio credit pack public purchase', () => {
+// Credit packs are not a product surface (credits may return later as recovery).
+test.describe.skip('@journey studio credit pack public purchase', () => {
   test('client buys credit pack → pending at studio', async ({
     createRecordedContext,
     localWrites: _localWrites,

@@ -8,11 +8,15 @@ import {
 } from './overlays';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { clickTabUntilReady } from './tabs';
 
 export type CompanyBasicData = {
   description?: string;
   website?: string;
   instagramUrl?: string;
+  showEmployeeSelection?: boolean;
+  /** Hex brand color, e.g. `#00aa55`. */
+  primaryColor?: string;
 };
 
 export type OnlineBookingSettings = {
@@ -20,6 +24,14 @@ export type OnlineBookingSettings = {
   intervalLabel?: string;
   multipleServices?: boolean;
   notifyClientsEmail?: boolean;
+  /** Under “¿Cómo quieres recibir reservas?”. */
+  scheduleTypeLabel?:
+    | 'Los turnos se confirman automáticamente'
+    | 'Pendiente de confirmación';
+  /** Free text under Términos y condiciones. */
+  termsAndConditions?: string;
+  /** Under “Cancelación de reservas”. */
+  cancelationLabel?: string;
 };
 
 async function configurationTabReady(
@@ -28,7 +40,10 @@ async function configurationTabReady(
 ): Promise<boolean> {
   switch (tab) {
     case 'Datos básicos':
-      return page.locator('#companyName').isVisible().catch(() => false);
+      return page
+        .locator('#companyName')
+        .isVisible()
+        .catch(() => false);
     case 'Reservas Online':
       return page
         .getByText(/Cómo quieres recibir reservas/i)
@@ -48,7 +63,7 @@ async function configurationTabReady(
   }
 }
 
-async function gotoConfiguration(
+export async function gotoConfiguration(
   page: Page,
   tab: 'Datos básicos' | 'Reservas Online' | 'Horarios' | 'Medios de Pago',
 ): Promise<void> {
@@ -58,48 +73,17 @@ async function gotoConfiguration(
   await dismissReferralNudgeIfPresent(page);
   await dismissNextjsPortalIfPresent(page);
   await page.keyboard.press('Escape').catch(() => undefined);
-  await expect(page.getByRole('heading', { name: 'Configuración' })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: 'Configuración' }),
+  ).toBeVisible({
     timeout: 60_000,
-  });
-  await expect(page.getByRole('tab', { name: 'Datos básicos' })).toBeVisible({
-    timeout: 30_000,
   });
 
   const tabButton = page.getByRole('tab', { name: tab, exact: true });
-  await expect(tabButton).toBeVisible({ timeout: 30_000 });
-
-  // Assert by panel content: snackbar/overlays can swallow the first click, and
-  // aria-selected can stay false even when the tab panel is already showing.
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (await configurationTabReady(page, tab)) {
-      break;
-    }
-    await dismissNextjsPortalIfPresent(page);
-    await page.keyboard.press('Escape').catch(() => undefined);
-    await tabButton.click({ force: true });
-  }
-
-  switch (tab) {
-    case 'Datos básicos':
-      await expect(page.locator('#companyName')).toBeVisible({ timeout: 30_000 });
-      break;
-    case 'Reservas Online':
-      await expect(
-        page.getByText(/Cómo quieres recibir reservas/i),
-      ).toBeVisible({ timeout: 30_000 });
-      break;
-    case 'Horarios':
-      await expect(page.getByRole('heading', { name: 'Tus Horarios' })).toBeVisible({
-        timeout: 30_000,
-      });
-      break;
-    case 'Medios de Pago':
-      break;
-    default: {
-      const _exhaustive: never = tab;
-      throw new Error(`Unhandled configuration tab: ${_exhaustive}`);
-    }
-  }
+  await clickTabUntilReady(page, tabButton, () =>
+    configurationTabReady(page, tab),
+  );
+  await expect.poll(() => configurationTabReady(page, tab)).toBe(true);
 }
 
 async function saveCompanyPatch(
@@ -128,9 +112,7 @@ async function saveCompanyPatch(
   await save.click();
   const response = await patch;
   expect(response.ok(), `company PATCH ${response.status()}`).toBeTruthy();
-  await expect(
-    page.getByText(/actualizad[oa]s? con éxito/i),
-  ).toBeVisible({
+  await expect(page.getByText(/actualizad[oa]s? con éxito/i)).toBeVisible({
     timeout: 30_000,
   });
 }
@@ -171,11 +153,31 @@ export async function updateCompanyBasicDataInPanel(
   if (data.instagramUrl !== undefined) {
     await fillControlledField(page, 'instagramUrl', data.instagramUrl);
   }
+  if (data.showEmployeeSelection !== undefined) {
+    const toggle = page.getByRole('checkbox', {
+      name: /Mostrar selección de empleados/i,
+    });
+    await expect(toggle).toBeVisible({ timeout: 30_000 });
+    const checked = await toggle.isChecked();
+    if (checked !== data.showEmployeeSelection) {
+      await toggle.click();
+    }
+    await expect(toggle).toBeChecked({ checked: data.showEmployeeSelection });
+  }
+  if (data.primaryColor !== undefined) {
+    const colorField = page.getByRole('textbox', { name: 'Color de marca' });
+    await expect(colorField).toBeVisible({ timeout: 30_000 });
+    await colorField.click();
+    await colorField.fill('');
+    await colorField.pressSequentially(data.primaryColor, { delay: 10 });
+    await expect(colorField).toHaveValue(data.primaryColor);
+  }
 
   const bodyIncludes = [
     data.description,
     data.website,
     data.instagramUrl,
+    data.primaryColor,
   ].filter((value): value is string => Boolean(value));
 
   await saveCompanyPatch(page, bodyIncludes);
@@ -190,6 +192,16 @@ export async function updateCompanyBasicDataInPanel(
   }
   if (data.instagramUrl !== undefined) {
     await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
+  }
+  if (data.showEmployeeSelection !== undefined) {
+    await expect(
+      page.getByRole('checkbox', { name: /Mostrar selección de empleados/i }),
+    ).toBeChecked({ checked: data.showEmployeeSelection });
+  }
+  if (data.primaryColor !== undefined) {
+    await expect(
+      page.getByRole('textbox', { name: 'Color de marca' }),
+    ).toHaveValue(data.primaryColor);
   }
 }
 
@@ -213,6 +225,16 @@ export async function expectCompanyBasicDataInPanel(
   }
   if (data.instagramUrl !== undefined) {
     await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
+  }
+  if (data.showEmployeeSelection !== undefined) {
+    await expect(
+      page.getByRole('checkbox', { name: /Mostrar selección de empleados/i }),
+    ).toBeChecked({ checked: data.showEmployeeSelection });
+  }
+  if (data.primaryColor !== undefined) {
+    await expect(
+      page.getByRole('textbox', { name: 'Color de marca' }),
+    ).toHaveValue(data.primaryColor);
   }
 }
 
@@ -248,7 +270,9 @@ export async function expectCompanyInfoOnPublicWeb(
     timeout: 30_000,
   });
   if (data.websiteHost) {
-    await expect(page.getByText(data.websiteHost, { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText(data.websiteHost, { exact: true }).first(),
+    ).toBeVisible();
   }
   if (data.instagramHandle) {
     await expect(
@@ -257,16 +281,40 @@ export async function expectCompanyInfoOnPublicWeb(
   }
 }
 
-function intervalCombobox(page: Page) {
+function comboboxAfterHeading(page: Page, heading: string | RegExp) {
   return page
-    .getByRole('heading', { name: 'Habilitar reservas cada' })
+    .getByRole('heading', { name: heading })
     .locator('xpath=following::div[@role="combobox"][1]');
+}
+
+function intervalCombobox(page: Page) {
+  return comboboxAfterHeading(page, 'Habilitar reservas cada');
+}
+
+function scheduleTypeCombobox(page: Page) {
+  return comboboxAfterHeading(page, /Cómo quieres recibir reservas/i);
+}
+
+function cancelationCombobox(page: Page) {
+  return comboboxAfterHeading(page, 'Cancelación de reservas');
 }
 
 function multipleServicesSwitch(page: Page) {
   return page
     .getByRole('heading', { name: 'Múltiples servicios' })
     .locator('xpath=following::input[@type="checkbox"][1]');
+}
+
+async function pickComboboxOption(
+  page: Page,
+  combo: Locator,
+  optionLabel: string,
+): Promise<void> {
+  await expect(combo).toBeVisible({ timeout: 30_000 });
+  await combo.click();
+  await page.getByRole('option', { name: optionLabel, exact: true }).click();
+  await expect(page.getByRole('listbox')).toBeHidden({ timeout: 10_000 });
+  await expect(combo).toContainText(optionLabel);
 }
 
 /** Update Configuración → Reservas Online settings. */
@@ -279,14 +327,28 @@ export async function updateOnlineBookingSettingsInPanel(
   await loginProfessionalViaApi(page);
   await gotoConfiguration(page, 'Reservas Online');
 
+  if (settings.scheduleTypeLabel !== undefined) {
+    await pickComboboxOption(
+      page,
+      scheduleTypeCombobox(page),
+      settings.scheduleTypeLabel,
+    );
+  }
+
   if (settings.intervalLabel !== undefined) {
-    const combo = intervalCombobox(page);
-    await expect(combo).toBeVisible({ timeout: 30_000 });
-    await combo.click();
-    await page
-      .getByRole('option', { name: settings.intervalLabel, exact: true })
-      .click();
-    await expect(combo).toContainText(settings.intervalLabel);
+    await pickComboboxOption(
+      page,
+      intervalCombobox(page),
+      settings.intervalLabel,
+    );
+  }
+
+  if (settings.cancelationLabel !== undefined) {
+    await pickComboboxOption(
+      page,
+      cancelationCombobox(page),
+      settings.cancelationLabel,
+    );
   }
 
   if (settings.multipleServices !== undefined) {
@@ -312,17 +374,42 @@ export async function updateOnlineBookingSettingsInPanel(
     }
   }
 
+  if (settings.termsAndConditions !== undefined) {
+    await fillControlledField(
+      page,
+      'termsAndConditions',
+      settings.termsAndConditions,
+    );
+  }
+
   await saveCompanyPatch(page);
 
+  if (settings.scheduleTypeLabel !== undefined) {
+    await expect(scheduleTypeCombobox(page)).toContainText(
+      settings.scheduleTypeLabel,
+      { timeout: 30_000 },
+    );
+  }
   if (settings.intervalLabel !== undefined) {
     await expect(intervalCombobox(page)).toContainText(settings.intervalLabel, {
       timeout: 30_000,
     });
   }
+  if (settings.cancelationLabel !== undefined) {
+    await expect(cancelationCombobox(page)).toContainText(
+      settings.cancelationLabel,
+      { timeout: 30_000 },
+    );
+  }
   if (settings.multipleServices !== undefined) {
     await expect(multipleServicesSwitch(page)).toBeChecked({
       checked: settings.multipleServices,
     });
+  }
+  if (settings.termsAndConditions !== undefined) {
+    await expect(page.locator('#termsAndConditions')).toHaveValue(
+      settings.termsAndConditions,
+    );
   }
 }
 
@@ -336,15 +423,31 @@ export async function expectOnlineBookingSettingsInPanel(
 ): Promise<void> {
   await gotoConfiguration(page, 'Reservas Online');
 
+  if (settings.scheduleTypeLabel !== undefined) {
+    await expect(scheduleTypeCombobox(page)).toContainText(
+      settings.scheduleTypeLabel,
+      { timeout: 60_000 },
+    );
+  }
   if (settings.intervalLabel !== undefined) {
     const combo = intervalCombobox(page);
     await expect(combo).toContainText(/minutos|hora/i, { timeout: 60_000 });
     await expect(combo).toContainText(settings.intervalLabel);
   }
+  if (settings.cancelationLabel !== undefined) {
+    await expect(cancelationCombobox(page)).toContainText(
+      settings.cancelationLabel,
+    );
+  }
   if (settings.multipleServices !== undefined) {
     await expect(multipleServicesSwitch(page)).toBeChecked({
       checked: settings.multipleServices,
     });
+  }
+  if (settings.termsAndConditions !== undefined) {
+    await expect(page.locator('#termsAndConditions')).toHaveValue(
+      settings.termsAndConditions,
+    );
   }
 }
 
@@ -383,7 +486,11 @@ async function setTimePickerValue(
   }
   await expect(hoursList).toBeVisible({ timeout: 10_000 });
 
-  await pickDigitalClockOption(hoursList, `${hour} horas`, String(hour).padStart(2, '0'));
+  await pickDigitalClockOption(
+    hoursList,
+    `${hour} horas`,
+    String(hour).padStart(2, '0'),
+  );
 
   if (minute !== 0) {
     const minutesList = page.getByRole('listbox', { name: /minutos/i });
@@ -438,9 +545,12 @@ async function pickDigitalClockOption(
         return;
       }
     }
-    await listbox.evaluate((el, delta) => {
-      el.scrollTop += delta;
-    }, i < 15 ? 56 : -56);
+    await listbox.evaluate(
+      (el, delta) => {
+        el.scrollTop += delta;
+      },
+      i < 15 ? 56 : -56,
+    );
   }
 
   throw new Error(
@@ -481,14 +591,12 @@ export async function updateCompanyDayHoursInPanel(
     hours.openingHour,
     hours.openingMinute ?? 0,
   );
-  await expect(
-    page.getByText('Horario actualizado correctamente'),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Horario actualizado correctamente')).toBeVisible(
+    { timeout: 30_000 },
+  );
   // Refetch remounts the day row — wait for settled display before the next edit.
   await expect(opening).toHaveValue(
-    new RegExp(
-      `${String(hours.openingHour).padStart(2, '0')}:?\\d{2}`,
-    ),
+    new RegExp(`${String(hours.openingHour).padStart(2, '0')}:?\\d{2}`),
   );
   // Dismiss success snackbar so it does not block the next picker.
   await page.keyboard.press('Escape').catch(() => undefined);
@@ -499,9 +607,9 @@ export async function updateCompanyDayHoursInPanel(
     hours.closingHour,
     hours.closingMinute ?? 0,
   );
-  await expect(
-    page.getByText('Horario actualizado correctamente'),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Horario actualizado correctamente')).toBeVisible(
+    { timeout: 30_000 },
+  );
 }
 
 /** Reload Horarios and assert Apertura/Cierre textbox display values (HH:mm). */
@@ -522,4 +630,27 @@ export async function expectCompanyDayHoursInPanel(
   await expect(closing).toHaveValue(
     new RegExp(closingDisplay.replace(':', '\\:?')),
   );
+}
+
+/** Assert company terms text appears on the public terms page (+ tab when non-empty). */
+export async function expectTermsOnPublicWeb(
+  page: Page,
+  termsText: string,
+): Promise<void> {
+  const slug = e2eCompanySlug();
+  await page.goto(`${apps.public()}/${slug}/services`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await dismissNextjsPortalIfPresent(page);
+  await expect(
+    page.getByRole('tab', { name: 'Términos y condiciones' }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  await page.goto(`${apps.public()}/${slug}/terms-and-conditions`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await dismissNextjsPortalIfPresent(page);
+  await expect(page.getByText(termsText, { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
 }

@@ -41,8 +41,12 @@ test.describe('@journey studio enrollment action cancel link', () => {
     );
 
     try {
+      const to =
+        (prepared.paid_member_email as string | undefined) ||
+        'e2e.member.paid@turnolink.local';
       const message = await waitForMailpitMessage('cancelada', {
         timeoutMs: 15_000,
+        to,
       });
       expect(message.Subject.toLowerCase()).toMatch(/cancel|clase/);
     } catch {

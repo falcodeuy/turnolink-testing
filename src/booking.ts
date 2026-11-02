@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { env } from './env';
@@ -38,13 +38,65 @@ function servicesBasePath(embed: boolean): string {
     : `${apps.public()}/${slug}/services`;
 }
 
+async function waitForReactHydration(control: Locator): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        control
+          .evaluate((element) =>
+            Object.keys(element).some(
+              (key) =>
+                key.startsWith('__reactProps$') ||
+                key.startsWith('__reactFiber$'),
+            ),
+          )
+          .catch(() => false),
+      { timeout: 60_000, intervals: [100, 200, 400] },
+    )
+    .toBe(true);
+}
+
+async function reachAppointmentAvailability(
+  page: Page,
+  serviceCard?: Locator,
+): Promise<void> {
+  const availabilityUrl = /\/services\/availability\/?$/;
+  const employeesUrl = /\/services\/employees\/?$/;
+  const bookingStepUrl = /\/services\/(?:employees|availability)\/?$/;
+
+  if (!bookingStepUrl.test(new URL(page.url()).pathname)) {
+    if (serviceCard) {
+      await clickUntilUrl(page, serviceCard, bookingStepUrl);
+    } else {
+      const next = page.getByRole('button', {
+        name: 'Siguiente',
+        exact: true,
+      });
+      await expect(next).toBeEnabled({ timeout: 60_000 });
+      await clickUntilUrl(page, next, bookingStepUrl);
+    }
+  }
+
+  if (employeesUrl.test(new URL(page.url()).pathname)) {
+    const owner = page.getByRole('button', {
+      name: 'Seleccionar profesional E2E Owner',
+    });
+    await clickUntilUrl(page, owner, availabilityUrl);
+  }
+
+  await expect(page).toHaveURL(availabilityUrl, { timeout: 60_000 });
+}
+
 /**
  * Walk the public (or embed) funnel to `/services/preview` without confirming.
  * Useful for screen-validation midpoints.
  */
 export async function navigateToBookingPreview(
   page: Page,
-  input: Pick<PublicBookingInput, 'variantName' | 'variantNames' | 'embed'> = {},
+  input: Pick<
+    PublicBookingInput,
+    'variantName' | 'variantNames' | 'embed'
+  > = {},
 ): Promise<PublicBookingResult> {
   assertNotProductionWriteContext('open public booking preview');
 
@@ -59,38 +111,32 @@ export async function navigateToBookingPreview(
   });
   await dismissNextjsPortalIfPresent(page);
 
-  for (const variantName of variants) {
-    const variant = page.getByText(variantName, { exact: true }).first();
-    await expect(variant).toBeVisible({ timeout: 60_000 });
-    await dismissNextjsPortalIfPresent(page);
-    await variant.click({ force: true });
-  }
-
-  const availabilityUrl = /\/services\/availability\/?$/;
-  if (variants.length > 1) {
-    const nextOnServices = page.getByRole('button', {
-      name: 'Siguiente',
-      exact: true,
-    });
-    await expect(nextOnServices).toBeEnabled({ timeout: 30_000 });
-    await nextOnServices.click();
-  }
-
-  try {
-    await expect(page).toHaveURL(availabilityUrl, { timeout: 30_000 });
-  } catch {
-    const nextOnServices = page.getByRole('button', {
-      name: 'Siguiente',
-      exact: true,
-    });
-    await expect(nextOnServices).toBeEnabled({ timeout: 15_000 });
-    await nextOnServices.click();
-    await expect(page).toHaveURL(availabilityUrl, { timeout: 60_000 });
-  }
-
-  await expect(page.getByText(/ha ocurrido un error|no se pudo obtener/i)).toHaveCount(
-    0,
+  const variantCards = variants.map((variantName) =>
+    page
+      .getByRole('button', {
+        name: new RegExp(`^(?:Servicio|Paquete): ${variantName}$`),
+      })
+      .or(page.getByText(variantName, { exact: true }))
+      .first(),
   );
+
+  for (const variant of variantCards) {
+    await expect(variant).toBeVisible({ timeout: 60_000 });
+    await waitForReactHydration(variant);
+    if (variants.length > 1) {
+      await dismissNextjsPortalIfPresent(page);
+      await variant.click();
+    }
+  }
+
+  await reachAppointmentAvailability(
+    page,
+    variants.length === 1 ? variantCards[0] : undefined,
+  );
+
+  await expect(
+    page.getByText(/ha ocurrido un error|no se pudo obtener/i),
+  ).toHaveCount(0);
   await expect(
     page.getByRole('heading', { name: /disponibilidad/i }),
   ).toBeVisible();
@@ -122,9 +168,7 @@ export async function navigateToBookingPreview(
 
   await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
-  await expect(
-    page.getByRole('heading', { name: /tus datos/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /tus datos/i })).toBeVisible();
 
   return { slotLabel, dayNumber };
 }
@@ -154,11 +198,54 @@ export async function bookAppointmentOnPublicWeb(
   await expect(page).toHaveURL(/\/payment\?/, { timeout: 60_000 });
   await expect(
     page.getByRole('heading', {
-      name: /reserva confirmada|pago exitoso|pago pendiente/i,
+      name: /reserva confirmada|pago exitoso|pago pendiente|inscripción confirmada/i,
     }),
   ).toBeVisible({ timeout: 60_000 });
 
   return result;
+}
+
+/**
+ * Open public availability for the default variant and return clock labels
+ * for the first selectable day (e.g. `09:00`, `09:30`).
+ */
+export async function listPublicAvailabilitySlots(
+  page: Page,
+  options: { embed?: boolean; variantName?: string } = {},
+): Promise<string[]> {
+  assertNotProductionWriteContext('list public availability slots');
+  const embed = Boolean(options.embed);
+  const variantName = options.variantName ?? '30 min';
+
+  await page.goto(servicesBasePath(embed), {
+    waitUntil: 'domcontentloaded',
+  });
+  await dismissNextjsPortalIfPresent(page);
+
+  await expect(page.getByText(variantName, { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+  const serviceCard = page
+    .getByRole('button')
+    .filter({ has: page.getByText(variantName, { exact: true }) })
+    .first();
+  await reachAppointmentAvailability(page, serviceCard);
+  await dismissNextjsPortalIfPresent(page);
+  await expect(
+    page.getByRole('heading', { name: /disponibilidad/i }),
+  ).toBeVisible({ timeout: 60_000 });
+
+  await selectFirstAvailableDay(page);
+
+  const slots = page.getByText(/^\d{2}:\d{2}$/);
+  await expect(slots.first()).toBeVisible({ timeout: 30_000 });
+  const count = await slots.count();
+  const labels: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const text = ((await slots.nth(i).textContent()) || '').trim();
+    if (/^\d{2}:\d{2}$/.test(text)) labels.push(text);
+  }
+  return labels;
 }
 
 /**
@@ -255,7 +342,7 @@ async function clickCalendarDay(page: Page, dayNumber: number): Promise<void> {
   });
 }
 
-async function selectFirstAvailableDay(page: Page): Promise<number> {
+export async function selectFirstAvailableDay(page: Page): Promise<number> {
   await dismissNextjsPortalIfPresent(page);
 
   const availableDay = page.getByRole('button', {
@@ -292,8 +379,8 @@ async function selectFirstAvailableDay(page: Page): Promise<number> {
 }
 
 /** Prefer a timed slot with open seats (credits / drop-in need CONFIRMED, not waitlist). */
-async function selectFirstOpenClassSlot(page: Page): Promise<string> {
-  const timeSlots = page.getByText(/^\d{2}:\d{2}$/);
+export async function selectFirstOpenClassSlot(page: Page): Promise<string> {
+  const timeSlots = page.getByRole('button', { name: /^\d{2}:\d{2}$/ });
   await expect(timeSlots.first()).toBeVisible({ timeout: 30_000 });
   const count = await timeSlots.count();
 
@@ -324,9 +411,7 @@ async function fillPreviewAndConfirm(
 ): Promise<void> {
   await expect(page.getByText(/ha ocurrido un error/i)).toHaveCount(0);
   await expect(page).toHaveURL(/\/services\/preview\/?$/, { timeout: 60_000 });
-  await expect(
-    page.getByRole('heading', { name: /tus datos/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /tus datos/i })).toBeVisible();
 
   await page.locator('#name').fill(input.clientName);
   await page.locator('#phone').fill(input.phone);
@@ -388,10 +473,11 @@ export async function bookPackageOnPublicWeb(
   await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
   await dismissNextjsPortalIfPresent(page);
 
-  const variant = page.getByText(variantName, { exact: true }).first();
-  await expect(variant).toBeVisible({ timeout: 60_000 });
+  const variant = page.getByRole('button', {
+    name: `Paquete: ${variantName}`,
+  });
   await dismissNextjsPortalIfPresent(page);
-  await variant.click({ force: true });
+  await clickUntilUrl(page, variant, /\/services\/availability\/?$/);
 
   await expect(page).toHaveURL(/\/services\/availability\/?$/, {
     timeout: 60_000,
@@ -415,9 +501,9 @@ export async function bookPackageOnPublicWeb(
     await nextSlot.click();
   }
 
-  await expect(
-    page.getByText(/todas las sesiones tienen fecha/i),
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/todas las sesiones tienen fecha/i)).toBeVisible({
+    timeout: 30_000,
+  });
 
   const next = page.getByRole('button', { name: 'Siguiente', exact: true });
   await expect(next).toBeEnabled({ timeout: 30_000 });
@@ -425,6 +511,50 @@ export async function bookPackageOnPublicWeb(
 
   await fillPreviewAndConfirm(page, input);
   return { slotLabel, dayNumber };
+}
+
+async function chooseStudioOwner(
+  page: Page,
+  employeePath: RegExp,
+): Promise<void> {
+  await expect(page).toHaveURL(employeePath, { timeout: 60_000 });
+  const owner = page.getByRole('button', {
+    name: 'Seleccionar profesional E2E Owner',
+  });
+  await expect(owner).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: 'Seleccionar profesional E2E Instructora',
+    }),
+  ).toBeVisible();
+  await owner.click();
+  await expect(owner).toHaveAttribute('aria-pressed', 'true');
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await expect(next).toBeEnabled();
+  await next.click();
+}
+
+async function clickUntilUrl(
+  page: Page,
+  control: Locator,
+  expectedPath: RegExp,
+): Promise<void> {
+  await expect(control).toBeVisible({ timeout: 60_000 });
+  await waitForReactHydration(control);
+  await expect
+    .poll(
+      async () => {
+        if (expectedPath.test(new URL(page.url()).pathname)) return true;
+        await control.click({ timeout: 2_000 }).catch(() => undefined);
+        if (expectedPath.test(new URL(page.url()).pathname)) return true;
+        return page
+          .waitForURL(expectedPath, { timeout: 2_000 })
+          .then(() => true)
+          .catch(() => false);
+      },
+      { timeout: 60_000, intervals: [200, 400, 800] },
+    )
+    .toBe(true);
 }
 
 /**
@@ -447,10 +577,10 @@ export async function bookDropInClassOnPublicWeb(
   const card = page.getByRole('button', {
     name: `Clase suelta: ${classTypeName}`,
   });
-  await expect(card).toBeVisible({ timeout: 60_000 });
   await dismissNextjsPortalIfPresent(page);
-  await card.click({ force: true });
+  await clickUntilUrl(page, card, /\/services\/class-employees\/?$/);
 
+  await chooseStudioOwner(page, /\/services\/class-employees\/?$/);
   await expect(page).toHaveURL(/\/services\/class-availability\/?$/, {
     timeout: 60_000,
   });
@@ -488,10 +618,10 @@ export async function bookMembershipOnPublicWeb(
   await dismissNextjsPortalIfPresent(page);
 
   const card = page.getByRole('button', { name: `Membresía: ${planName}` });
-  await expect(card).toBeVisible({ timeout: 60_000 });
   await dismissNextjsPortalIfPresent(page);
-  await card.click({ force: true });
+  await clickUntilUrl(page, card, /\/services\/membership-employees\/?$/);
 
+  await chooseStudioOwner(page, /\/services\/membership-employees\/?$/);
   await expect(page).toHaveURL(/\/services\/membership\/?$/, {
     timeout: 60_000,
   });

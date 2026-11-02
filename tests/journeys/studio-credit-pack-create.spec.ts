@@ -6,7 +6,8 @@ import {
   prepareStudioFixtures,
 } from '../../src/studio';
 
-test.describe('@journey studio credit pack create', () => {
+// Credit packs are not a product surface (credits may return later as recovery).
+test.describe.skip('@journey studio credit pack create', () => {
   test('create a credit pack for E2E Pilates', async ({
     loggedInProfessionalPage,
     localWrites: _localWrites,

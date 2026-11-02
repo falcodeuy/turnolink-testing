@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
+  openStudioEnrollmentsChip,
   openStudioTab,
   prepareStudioFixtures,
 } from '../../src/studio';
@@ -13,14 +14,9 @@ test.describe('@journey studio roster check-in', () => {
     prepareStudioFixtures();
     const page = loggedInProfessionalPage;
     await openStudioTab(page, 'schedule');
-
-    await page
-      .getByRole('button', { name: /Ver inscriptos \d+ de \d+/ })
-      .first()
-      .click();
+    await openStudioEnrollmentsChip(page, 'Lunes');
 
     const heading = page.getByRole('heading', { name: 'Inscriptos', level: 2 });
-    await expect(heading).toBeVisible({ timeout: 30_000 });
 
     // MUI Modal has no role=dialog; scope by the open modal that owns the heading.
     const modal = page.locator('.MuiModal-root').filter({ has: heading });

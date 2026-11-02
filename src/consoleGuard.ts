@@ -2,7 +2,7 @@ import type { ConsoleMessage, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 const REACT_CONSOLE_ERROR =
-  /value prop on `?input`? should not be null|uncontrolled input to be controlled|cannot be a descendant of|cannot contain a nested/i;
+  /value prop on `?input`? should not be null|uncontrolled input to be controlled|cannot be a descendant of|cannot contain a nested|hydration failed|server rendered html didn't match|selector unknown returned a different result/i;
 
 /**
  * Collect React/DOM console errors for the page lifetime.

@@ -26,7 +26,10 @@ export function runManageJson(
   const result = spawnSync(python, [managePy, command, ...args, '--json'], {
     cwd,
     encoding: 'utf8',
-    env: process.env,
+    env: {
+      ...process.env,
+      NEXT_REVALIDATE_URL: `${env.publicWebUrl.replace(/\/$/, '')}/api/revalidate`,
+    },
   });
 
   const combined = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;

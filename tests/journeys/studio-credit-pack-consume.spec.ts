@@ -6,7 +6,8 @@ import {
 import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
-test.describe('@journey studio credit pack consume on drop-in', () => {
+// Credit packs are not a product surface (credits may return later as recovery).
+test.describe.skip('@journey studio credit pack consume on drop-in', () => {
   test('buy pack then drop-in uses credit instead of studio charge', async ({
     createRecordedContext,
     localWrites: _localWrites,

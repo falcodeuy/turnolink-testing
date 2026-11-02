@@ -1,6 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
-import { newRecordedContext } from '../src/browser';
+import {
+  closeRecordedContext,
+  contextOptionsFromProjectUse,
+  newRecordedContext,
+} from '../src/browser';
 import { env } from '../src/env';
 import {
   e2eBegin,
@@ -121,10 +125,13 @@ export const test = base.extend<E2eFixtures, E2eWorkerFixtures>({
     e2eEnd(runId, owned);
   },
 
-  recordedContext: async ({ browser, workerCompany: _wc }, use) => {
-    const context = await newRecordedContext(browser);
+  recordedContext: async ({ browser, workerCompany: _wc }, use, testInfo) => {
+    const context = await newRecordedContext(
+      browser,
+      contextOptionsFromProjectUse(testInfo.project.use),
+    );
     await use(context);
-    await context.close();
+    await closeRecordedContext(context, testInfo, 'main');
   },
 
   recordedPage: async ({ recordedContext }, use) => {
@@ -140,15 +147,22 @@ export const test = base.extend<E2eFixtures, E2eWorkerFixtures>({
     await use(recordedPage);
   },
 
-  createRecordedContext: async ({ browser, workerCompany: _wc }, use) => {
+  createRecordedContext: async (
+    { browser, workerCompany: _wc },
+    use,
+    testInfo,
+  ) => {
+    const device = contextOptionsFromProjectUse(testInfo.project.use);
     const opened: BrowserContext[] = [];
     const create = async (): Promise<BrowserContext> => {
-      const context = await newRecordedContext(browser);
+      const context = await newRecordedContext(browser, device);
       opened.push(context);
       return context;
     };
     await use(create);
-    await Promise.all(opened.map((context) => context.close()));
+    for (const [index, context] of opened.entries()) {
+      await closeRecordedContext(context, testInfo, `context-${index + 1}`);
+    }
   },
 
   localWrites: [

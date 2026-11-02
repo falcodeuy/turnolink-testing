@@ -9,6 +9,7 @@ import { requireActiveWorkerCompany } from './workerCompany';
 export const STUDIO_FIXTURES = {
   classTypeName: 'E2E Pilates',
   planName: 'E2E 2x semana',
+  instructorName: 'E2E Instructora',
   paidMemberName: 'E2E Alumna Al Día',
   debtMemberName: 'E2E Alumna Con Deuda',
 } as const;
@@ -32,10 +33,7 @@ export function currentPeriodLabel(date = new Date()): string {
 }
 
 export function prepareStudioFixtures(): Record<string, unknown> {
-  return prepareE2eScenarioForSlug(
-    'studio',
-    requireActiveWorkerCompany().slug,
-  );
+  return prepareE2eScenarioForSlug('studio', requireActiveWorkerCompany().slug);
 }
 
 export async function openStudioTab(
@@ -146,9 +144,7 @@ export async function openMembershipHorarios(
   page: Page,
   memberName: string,
 ): Promise<void> {
-  await page
-    .getByRole('button', { name: `Horarios de ${memberName}` })
-    .click();
+  await page.getByRole('button', { name: `Horarios de ${memberName}` }).click();
   await expect(
     page.getByRole('heading', { name: /Horarios fijos/i }),
   ).toBeVisible({ timeout: 30_000 });
@@ -200,6 +196,60 @@ export async function createClassType(
   });
 }
 
+const STUDIO_WEEKDAYS = [
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+  'Domingo',
+] as const;
+
+/**
+ * Mobile Horarios shows one weekday column; desktop shows the full week.
+ * Select the day strip button (index 0=Lunes) when the column isn't already open.
+ */
+export async function selectStudioScheduleWeekday(
+  page: Page,
+  weekdayLabel: string,
+): Promise<void> {
+  const index = STUDIO_WEEKDAYS.indexOf(
+    weekdayLabel as (typeof STUDIO_WEEKDAYS)[number],
+  );
+  if (index < 0) {
+    throw new Error(`Unknown studio weekday: ${weekdayLabel}`);
+  }
+
+  const addForDay = page.getByRole('button', {
+    name: `Agregar clase el ${weekdayLabel}`,
+  });
+  if (await addForDay.isVisible().catch(() => false)) {
+    return;
+  }
+
+  // Wait for either desktop day columns or the mobile letter strip.
+  const stripLetters = page.getByRole('button', { name: /^[LMJVSD]$/ });
+  await expect
+    .poll(
+      async () => {
+        if (await addForDay.isVisible().catch(() => false)) return 'ready';
+        if ((await stripLetters.count()) >= 7) return 'mobile';
+        return 'wait';
+      },
+      { timeout: 30_000 },
+    )
+    .not.toBe('wait');
+
+  if (await addForDay.isVisible().catch(() => false)) {
+    return;
+  }
+
+  // Mobile strip letters (L M M J V S D).
+  await stripLetters.nth(index).click();
+  await expect(addForDay).toBeVisible({ timeout: 15_000 });
+}
+
 export async function openAddScheduleModal(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Agregar horarios' }).click();
   await expect(
@@ -213,6 +263,7 @@ export async function openEditExistingSchedule(
   startHhmm: string,
   weekdayLabel: string,
 ): Promise<void> {
+  await selectStudioScheduleWeekday(page, weekdayLabel);
   await page
     .getByRole('button', {
       name: `Editar horario ${classTypeName} ${startHhmm} ${weekdayLabel}`,
@@ -220,6 +271,21 @@ export async function openEditExistingSchedule(
     .click();
   await expect(
     page.getByRole('heading', { name: /Editar horarios/i }),
+  ).toBeVisible({ timeout: 30_000 });
+}
+
+/** Open the first “Ver inscriptos” chip for a weekday (mobile-aware). */
+export async function openStudioEnrollmentsChip(
+  page: Page,
+  weekdayLabel = 'Lunes',
+): Promise<void> {
+  await selectStudioScheduleWeekday(page, weekdayLabel);
+  await page
+    .getByRole('button', { name: /Ver inscriptos \d+ de \d+/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Inscriptos', level: 2 }),
   ).toBeVisible({ timeout: 30_000 });
 }
 

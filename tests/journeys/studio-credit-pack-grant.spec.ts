@@ -5,7 +5,8 @@ import {
   prepareStudioFixtures,
 } from '../../src/studio';
 
-test.describe('@journey studio credit pack grant', () => {
+// Credit packs are not a product surface (credits may return later as recovery).
+test.describe.skip('@journey studio credit pack grant', () => {
   test('grant seeded pack to paid member from Plans tab', async ({
     loggedInProfessionalPage,
     localWrites: _localWrites,
@@ -30,7 +31,9 @@ test.describe('@journey studio credit pack grant', () => {
     await expect(
       page.getByText(STUDIO_FIXTURES.paidMemberName, { exact: true }),
     ).toBeVisible({ timeout: 15_000 });
-    await page.getByText(STUDIO_FIXTURES.paidMemberName, { exact: true }).click();
+    await page
+      .getByText(STUDIO_FIXTURES.paidMemberName, { exact: true })
+      .click();
 
     await page.getByRole('combobox', { name: 'Pack' }).click();
     await page.getByRole('option', { name: /E2E Pack 4/ }).click();

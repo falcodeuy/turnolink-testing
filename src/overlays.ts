@@ -5,9 +5,19 @@ import type { Page } from '@playwright/test';
  * Call from helpers (launch/auth/journey), not from specs.
  */
 export async function dismissHelpModalIfPresent(page: Page): Promise<void> {
+  const helpOpen = page.getByRole('heading', { name: /Necesitas ayuda/i });
   const close = page.getByRole('button', { name: 'cerrar' });
+  if (await helpOpen.isVisible().catch(() => false)) {
+    if (await close.isVisible().catch(() => false)) {
+      await close.click({ force: true }).catch(() => undefined);
+    } else {
+      await page.keyboard.press('Escape').catch(() => undefined);
+    }
+    await helpOpen.waitFor({ state: 'hidden' }).catch(() => undefined);
+    return;
+  }
   if (await close.isVisible().catch(() => false)) {
-    await close.click();
+    await close.click({ force: true }).catch(() => undefined);
   }
 }
 

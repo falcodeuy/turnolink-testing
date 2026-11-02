@@ -13,10 +13,24 @@ type MailpitListResponse = {
   messages: MailpitMessage[];
 };
 
+export type MailpitWaitOptions = {
+  timeoutMs?: number;
+  pollMs?: number;
+  /** Narrow search to a recipient (Mailpit `to:` query). */
+  to?: string;
+};
+
 function mailpitBaseUrl(): string {
   // Same host as public web in local docker; Mailpit UI/API on 8025.
   const publicUrl = new URL(apps.public());
   return `${publicUrl.protocol}//${publicUrl.hostname}:8025`;
+}
+
+function buildMailpitQuery(search: string, to?: string): string {
+  const parts: string[] = [];
+  if (search.trim()) parts.push(search.trim());
+  if (to?.trim()) parts.push(`to:${to.trim()}`);
+  return parts.join(' ');
 }
 
 export async function listMailpitMessages(
@@ -36,15 +50,16 @@ export async function listMailpitMessages(
 
 export async function waitForMailpitMessage(
   search: string,
-  options: { timeoutMs?: number; pollMs?: number } = {},
+  options: MailpitWaitOptions = {},
 ): Promise<MailpitMessage> {
   const timeoutMs = options.timeoutMs ?? 30_000;
   const pollMs = options.pollMs ?? 1_000;
+  const query = buildMailpitQuery(search, options.to);
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   while (Date.now() < deadline) {
     try {
-      const messages = await listMailpitMessages(search);
+      const messages = await listMailpitMessages(query);
       if (messages.length > 0) return messages[0]!;
     } catch (error) {
       lastError = error;
@@ -52,7 +67,7 @@ export async function waitForMailpitMessage(
     await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
   throw new Error(
-    `Mailpit: no message matching "${search}" within ${timeoutMs}ms` +
+    `Mailpit: no message matching "${query}" within ${timeoutMs}ms` +
       (lastError ? ` (last error: ${String(lastError)})` : ''),
   );
 }
