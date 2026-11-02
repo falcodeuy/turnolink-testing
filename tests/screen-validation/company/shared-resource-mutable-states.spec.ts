@@ -102,6 +102,16 @@ test.describe('@screen professional shared resource mutable states', () => {
       loggedInProfessionalPage,
       'Recursos compartidos',
     );
+    await expect(
+      loggedInProfessionalPage.getByRole('heading', {
+        name: 'Agregar recurso compartido',
+      }),
+    ).toBeVisible();
+    await expect(
+      loggedInProfessionalPage.getByRole('combobox', {
+        name: 'Servicios vinculados',
+      }),
+    ).toBeVisible();
 
     const name = loggedInProfessionalPage.getByRole('textbox', {
       name: 'Nombre',
@@ -116,6 +126,8 @@ test.describe('@screen professional shared resource mutable states', () => {
       exact: true,
     });
 
+    await expect(quantity).toHaveValue('1');
+    await expect(save).toBeDisabled();
     await name.fill(createdResource.name);
     await quantity.fill('0');
     await expect(

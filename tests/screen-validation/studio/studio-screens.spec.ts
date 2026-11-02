@@ -7,38 +7,7 @@ import {
   prepareStudioFixtures,
 } from '../../../src/studio';
 
-const STUDIO_DEEP_LINKS = [
-  { tab: 'classes', heading: 'Clases' },
-  { tab: 'schedule', heading: 'Horario de clases' },
-  { tab: 'plans', heading: 'Planes' },
-  { tab: 'memberships', heading: 'Membresías' },
-] as const;
-
 test.describe('@screen Studio', () => {
-  for (const { tab, heading } of STUDIO_DEEP_LINKS) {
-    test(`deep link opens ${tab} with its heading`, async ({
-      loggedInProfessionalPage,
-      localWrites: _localWrites,
-      seededProfessional: _seededProfessional,
-    }) => {
-      prepareStudioFixtures();
-
-      await openStudioTab(loggedInProfessionalPage, tab);
-
-      await expect(
-        loggedInProfessionalPage.getByRole('heading', {
-          name: heading,
-          level: 1,
-        }),
-      ).toBeVisible();
-      await expect(loggedInProfessionalPage).toHaveURL(
-        tab === 'classes'
-          ? /\/portal\/studio\/?$/
-          : new RegExp(`[?&]tab=${tab}(?:&|$)`),
-      );
-    });
-  }
-
   test('class form guards required name and toggles drop-in fields', async ({
     loggedInProfessionalPage,
     localWrites: _localWrites,

@@ -9,6 +9,14 @@ test.describe('@screen @validation booking preview form guards', () => {
   }) => {
     await openBookingPreviewEmptyFormMidpoint(recordedPage);
 
+    await expect(
+      recordedPage.getByRole('heading', { name: '¡Ya casi!' }),
+    ).toBeVisible();
+    await expect(
+      recordedPage.getByText('30 min', { exact: true }),
+    ).toBeVisible();
+    await expect(recordedPage.getByText(/Te atiende E2E Owner/i)).toBeVisible();
+
     const name = recordedPage.getByLabel(/^Nombre y apellido/);
     const phone = recordedPage.getByLabel(/^Teléfono/);
     const email = recordedPage.getByLabel(/^Email/);
@@ -52,21 +60,5 @@ test.describe('@screen @validation booking preview form guards', () => {
 
     await email.fill('ana@example.test');
     await expect(confirm).toBeEnabled();
-  });
-
-  test('shows the selected appointment in the supported product summary', async ({
-    recordedPage,
-    localWrites: _localWrites,
-    seededCompany: _seededCompany,
-  }) => {
-    await openBookingPreviewEmptyFormMidpoint(recordedPage);
-
-    await expect(
-      recordedPage.getByRole('heading', { name: '¡Ya casi!' }),
-    ).toBeVisible();
-    await expect(
-      recordedPage.getByText('30 min', { exact: true }),
-    ).toBeVisible();
-    await expect(recordedPage.getByText(/Te atiende E2E Owner/i)).toBeVisible();
   });
 });

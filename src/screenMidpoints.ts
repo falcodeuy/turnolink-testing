@@ -20,8 +20,6 @@ export async function openDatosBasicosMidpoint(page: Page): Promise<void> {
 }
 
 /** Alias used by some screen specs. */
-export const openCompanyBasicsMidpoint = openDatosBasicosMidpoint;
-
 /** Professional Configuración → Reservas Online (no mutations). */
 export async function openReservasOnlineMidpoint(page: Page): Promise<void> {
   assertNotProductionWriteContext('open reservas online midpoint');

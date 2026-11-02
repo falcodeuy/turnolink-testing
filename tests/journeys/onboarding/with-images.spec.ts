@@ -12,8 +12,6 @@ test.describe('@journey onboarding images', () => {
     localWrites: _localWrites,
   }) => {
     const user = prepareE2eOnboardingUser({
-      email: 'e2e-onboarding-images@turnolink.local',
-      phone: '+59899111004',
       name: 'E2E Onboarding Images',
     });
 

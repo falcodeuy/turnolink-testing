@@ -33,6 +33,9 @@ test.describe('@journey studio enrollment action cancel link', () => {
     await expect(
       page.getByRole('button', { name: 'Sí, cancelar' }),
     ).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByRole('button', { name: 'Volver', exact: true }),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Sí, cancelar' }).click();
     await expect(page.getByText(/inscripción cancelada|cancelad/i)).toBeVisible(
       {

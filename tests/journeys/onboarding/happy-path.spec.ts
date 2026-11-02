@@ -11,9 +11,7 @@ test.describe('@journey onboarding happy path', () => {
     recordedPage,
     localWrites: _localWrites,
   }) => {
-    const user = prepareE2eOnboardingUser({
-      email: 'e2e-onboarding@turnolink.local',
-    });
+    const user = prepareE2eOnboardingUser();
 
     await runOnboardingJourney(recordedPage, user, {
       companyName: uniqueLabel('E2E Onboarding'),

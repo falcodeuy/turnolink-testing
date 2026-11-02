@@ -10,6 +10,7 @@ export type WorkerCompany = {
 
 const DEFAULT_PREFIX = 'turnolink-e2e';
 const DEFAULT_PASSWORD = 'e2e-owner-pass-123';
+const DEFAULT_SEEDED_WORKERS = 4;
 
 let active: WorkerCompany | null = null;
 
@@ -43,6 +44,24 @@ export function workerCompanyFor(parallelIndex: number): WorkerCompany {
     ownerEmail: `e2e-owner-w${worker}@turnolink.local`,
     ownerPassword: DEFAULT_PASSWORD,
   };
+}
+
+export function assertWorkerCompanySeeded(company: WorkerCompany): void {
+  const configured = Number(
+    process.env.E2E_SEEDED_WORKERS ??
+      process.env.WORKERS ??
+      DEFAULT_SEEDED_WORKERS,
+  );
+  const seededWorkers =
+    Number.isInteger(configured) && configured > 0
+      ? configured
+      : DEFAULT_SEEDED_WORKERS;
+  if (company.worker >= seededWorkers) {
+    throw new Error(
+      `Worker ${company.worker} uses ${company.slug}, but only ${seededWorkers} ` +
+        'worker tenants are configured. Seed and run with the same WORKERS value.',
+    );
+  }
 }
 
 export function setActiveWorkerCompany(company: WorkerCompany | null): void {

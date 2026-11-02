@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
+  STUDIO_FIXTURES,
   openStudioEnrollmentsChip,
   openStudioTab,
   prepareStudioFixtures,
@@ -20,6 +21,7 @@ test.describe('@journey studio roster check-in', () => {
 
     // MUI Modal has no role=dialog; scope by the open modal that owns the heading.
     const modal = page.locator('.MuiModal-root').filter({ has: heading });
+    await expect(modal.getByText(STUDIO_FIXTURES.classTypeName)).toBeVisible();
 
     await modal.getByRole('button', { name: 'Presente' }).first().click();
     await expect(page.getByText('Marcada presente')).toBeVisible({

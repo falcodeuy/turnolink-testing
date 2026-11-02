@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/env';
 import { assertNotAccidentalProductionRun } from './src/safety';
+import { videoModeFromEnv } from './src/videoPolicy';
 
 assertNotAccidentalProductionRun();
 
@@ -17,6 +18,7 @@ const isProduction = env.targetEnv === 'production';
 export default defineConfig({
   testDir: './tests',
   testMatch: isProduction ? /production\/.*\.spec\.ts/ : /.*\.spec\.ts/,
+  testIgnore: isProduction ? [] : /production\/.*\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -42,7 +44,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     // Keep videos for passed tests too (review journeys locally).
     // Override with E2E_VIDEO=retain-on-failure|off if artifacts get large.
-    video: parseVideoMode(process.env.E2E_VIDEO),
+    video: videoModeFromEnv(),
   },
   projects: [
     {
@@ -56,18 +58,3 @@ export default defineConfig({
     },
   ],
 });
-
-function parseVideoMode(
-  value: string | undefined,
-): 'on' | 'off' | 'retain-on-failure' {
-  switch ((value ?? 'on').trim().toLowerCase()) {
-    case 'off':
-      return 'off';
-    case 'retain-on-failure':
-    case 'failure':
-      return 'retain-on-failure';
-    case 'on':
-    default:
-      return 'on';
-  }
-}

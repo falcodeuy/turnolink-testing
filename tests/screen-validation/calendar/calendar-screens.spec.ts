@@ -156,26 +156,32 @@ test.describe('@screen Calendar', () => {
     const calendar = page.getByRole('region', {
       name: 'Calendario interactivo',
     });
-    const title = calendar.locator('.fc-toolbar-title');
-    const before = (await title.textContent())?.trim() ?? '';
+    const selectedDay = calendar.locator(
+      '[aria-label="Seleccionar día"] [aria-current="date"]',
+    );
+    const gestureArea = calendar.locator('.fc');
+    await expect(selectedDay).toBeVisible();
+    await expect(gestureArea).toBeVisible();
+    const before = await selectedDay.getAttribute('aria-label');
+    expect(before).toBeTruthy();
 
-    await swipe(calendar, { startX: 300, endX: 100 });
+    await swipe(gestureArea, { startX: 300, endX: 100 });
 
-    await expect(title).not.toHaveText(before);
+    await expect(selectedDay).not.toHaveAttribute('aria-label', before!);
     await expect(
       page.getByRole('button', { name: 'Día', exact: true }),
     ).toHaveAttribute('aria-pressed', 'true');
 
-    await swipe(calendar, { startX: 100, endX: 300 });
-    await expect(title).toHaveText(before);
+    await swipe(gestureArea, { startX: 100, endX: 300 });
+    await expect(selectedDay).toHaveAttribute('aria-label', before!);
 
-    await swipe(calendar, {
+    await swipe(gestureArea, {
       startX: 180,
       endX: 120,
       startY: 100,
       endY: 300,
     });
-    await expect(title).toHaveText(before);
+    await expect(selectedDay).toHaveAttribute('aria-label', before!);
   });
 
   test('appointment actions open forms with required-field guards', async ({

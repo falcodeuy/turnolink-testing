@@ -18,6 +18,7 @@ import {
   loginProfessionalViaApi,
 } from '../src/professionalAuth';
 import {
+  assertWorkerCompanySeeded,
   setActiveWorkerCompany,
   workerCompanyFor,
   type WorkerCompany,
@@ -177,7 +178,8 @@ export const test = base.extend<E2eFixtures, E2eWorkerFixtures>({
   ],
 
   seededProfessional: [
-    async ({ workerCompany: _wc }, use) => {
+    async ({ workerCompany }, use) => {
+      assertWorkerCompanySeeded(workerCompany);
       test.skip(
         !hasProfessionalCredentials(),
         'Set E2E_PROFESSIONAL_EMAIL and E2E_PROFESSIONAL_PASSWORD (run npm run seed)',
@@ -189,6 +191,7 @@ export const test = base.extend<E2eFixtures, E2eWorkerFixtures>({
 
   seededCompany: [
     async ({ workerCompany }, use) => {
+      assertWorkerCompanySeeded(workerCompany);
       test.skip(
         !workerCompany.slug && !env.e2eAllowedCompanySlug,
         'Set E2E_ALLOWED_COMPANY_SLUG or run e2e_platform_seed',

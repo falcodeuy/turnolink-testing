@@ -23,6 +23,12 @@ test.describe('@journey studio schedule capacity edit', () => {
       'Lunes',
     );
 
+    await expect(
+      page.getByRole('heading', { name: 'Editar horarios' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Combinaciones' }),
+    ).toBeVisible();
     const capacity = page.locator('#capacity');
     await expect(capacity).toBeVisible();
     await capacity.fill('12');

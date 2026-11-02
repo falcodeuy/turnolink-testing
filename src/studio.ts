@@ -14,24 +14,6 @@ export const STUDIO_FIXTURES = {
   debtMemberName: 'E2E Alumna Con Deuda',
 } as const;
 
-export function currentPeriodLabel(date = new Date()): string {
-  const months = [
-    'ene',
-    'feb',
-    'mar',
-    'abr',
-    'may',
-    'jun',
-    'jul',
-    'ago',
-    'sep',
-    'oct',
-    'nov',
-    'dic',
-  ];
-  return `${months[date.getMonth()]} ${date.getFullYear()}`;
-}
-
 export function prepareStudioFixtures(): Record<string, unknown> {
   return prepareE2eScenarioForSlug('studio', requireActiveWorkerCompany().slug);
 }
@@ -86,18 +68,25 @@ export async function markMembershipCurrentPeriod(
   page: Page,
   options: { paid: boolean; monthLabel?: string; memberName?: string },
 ): Promise<void> {
-  const monthLabel = options.monthLabel ?? currentPeriodLabel();
   const memberName = options.memberName ?? STUDIO_FIXTURES.paidMemberName;
-  // Switch aria reflects the *action* (what clicking will do).
-  const aria = options.paid
-    ? `Marcar ${monthLabel} paga`
-    : `Marcar ${monthLabel} pendiente`;
   const row = page.getByRole('row', {
     name: new RegExp(escapeRegExp(memberName), 'i'),
   });
   await expect(row).toBeVisible({ timeout: 30_000 });
-  const toggle = row.getByRole('checkbox', { name: aria });
+  const action = options.paid ? 'paga' : 'pendiente';
+  const toggle = row.getByRole('checkbox', {
+    name: options.monthLabel
+      ? `Marcar ${options.monthLabel} ${action}`
+      : new RegExp(`^Marcar .+ ${action}$`, 'i'),
+  });
   await expect(toggle).toBeVisible({ timeout: 30_000 });
+  const ariaLabel = await toggle.getAttribute('aria-label');
+  const monthLabel =
+    options.monthLabel ??
+    ariaLabel?.match(/^Marcar (.+) (?:paga|pendiente)$/i)?.[1];
+  if (!monthLabel) {
+    throw new Error(`Could not read the membership period from ${ariaLabel}`);
+  }
   await expect(toggle).toBeEnabled();
   await toggle.click();
   if (options.paid) {

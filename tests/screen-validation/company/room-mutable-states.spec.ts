@@ -96,6 +96,12 @@ test.describe('@screen professional room mutable states', () => {
     );
 
     await openRooms(loggedInProfessionalPage);
+    const search = loggedInProfessionalPage.getByPlaceholder('Buscar sala');
+    await search.fill('sala-inexistente-e2e');
+    await expect(
+      loggedInProfessionalPage.getByText(/No hay salas/i),
+    ).toBeVisible();
+    await search.fill('');
     await loggedInProfessionalPage
       .getByRole('button', { name: 'Nueva sala', exact: true })
       .click();
@@ -113,6 +119,8 @@ test.describe('@screen professional room mutable states', () => {
       exact: true,
     });
 
+    await expect(capacity).toHaveValue('1');
+    await expect(save).toBeDisabled();
     await name.fill(createdRoom.name);
 
     for (const invalidCapacity of ['0', '-2', '1.5']) {

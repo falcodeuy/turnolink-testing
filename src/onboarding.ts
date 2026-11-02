@@ -11,6 +11,7 @@ import {
 } from './overlays';
 import { loginProfessionalViaUi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { uniqueEmail, uniquePhone } from './unique';
 
 export type OnboardingUser = ProfessionalCredentials & {
   name: string;
@@ -60,15 +61,12 @@ export function prepareE2eOnboardingUser(
 ): OnboardingUser {
   assertNotProductionWriteContext('prepare E2E onboarding user');
 
-  const extraArgs: string[] = [];
-  if (overrides.email) {
-    extraArgs.push('--email', overrides.email);
-  }
+  const email =
+    overrides.email ?? uniqueEmail('e2e.onboarding', 'turnolink.local');
+  const phone = overrides.phone ?? uniquePhone('091');
+  const extraArgs: string[] = ['--email', email, '--phone', phone];
   if (overrides.password) {
     extraArgs.push('--password', overrides.password);
-  }
-  if (overrides.phone) {
-    extraArgs.push('--phone', overrides.phone);
   }
   if (overrides.name) {
     extraArgs.push('--name', overrides.name);
@@ -76,16 +74,16 @@ export function prepareE2eOnboardingUser(
 
   const payload = prepareE2eScenario('onboarding', extraArgs);
 
-  const email = String(payload.email ?? '');
+  const preparedEmail = String(payload.email ?? '');
   const password = String(payload.password ?? '');
-  if (!email || !password) {
+  if (!preparedEmail || !password) {
     throw new Error(
       `e2e_prepare onboarding returned incomplete credentials: ${JSON.stringify(payload)}`,
     );
   }
 
   return {
-    email,
+    email: preparedEmail,
     password,
     name: String(payload.name ?? 'E2E Onboarding'),
     companyId: Number(payload.company_id),

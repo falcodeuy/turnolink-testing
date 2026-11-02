@@ -25,15 +25,12 @@ export async function expectAppointmentInProfessionalPanel(
     page.getByRole('table', { name: 'appointments-table' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('row', { name: new RegExp(escapeRegExp(clientName), 'i') }),
+    page
+      .getByRole('row', {
+        name: new RegExp(escapeRegExp(clientName), 'i'),
+      })
+      .filter({ has: page.getByText('Confirmado', { exact: true }) }),
   ).toBeVisible({ timeout: 30_000 });
-}
-
-export async function deleteAppointmentFromProfessionalPanel(
-  page: Page,
-  clientName: string,
-): Promise<void> {
-  await cancelAppointmentInProfessionalPanel(page, clientName);
 }
 
 /**
@@ -56,7 +53,7 @@ export async function cancelAppointmentInProfessionalPanel(
   await page.locator('#search').fill(clientName);
   const row = page.getByRole('row', {
     name: new RegExp(escapeRegExp(clientName), 'i'),
-  });
+  }).filter({ has: page.getByText('Confirmado', { exact: true }) });
   await expect(row).toBeVisible({ timeout: 30_000 });
   await row.getByRole('link').first().click();
 
@@ -103,7 +100,7 @@ export async function cancelAppointmentInProfessionalPanel(
   await page.locator('#search').fill(clientName);
   const cancelledRow = page.getByRole('row', {
     name: new RegExp(escapeRegExp(clientName), 'i'),
-  });
+  }).filter({ has: page.getByText('Cancelado', { exact: true }) });
   await expect(cancelledRow).toBeVisible({ timeout: 30_000 });
   await expect(cancelledRow.getByText('Cancelado', { exact: true })).toBeVisible({
     timeout: 30_000,

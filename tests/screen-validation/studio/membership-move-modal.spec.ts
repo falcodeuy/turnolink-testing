@@ -17,17 +17,14 @@ type ClassOccurrence = {
   enrolled_count: number;
   is_cancelled: boolean;
   seats_remaining: number;
-  [key: string]: unknown;
 };
 
 type Membership = {
   client_name: string;
   current_period: {
     moves_used: number;
-    [key: string]: unknown;
   } | null;
   max_moves_per_month: number | null;
-  [key: string]: unknown;
 };
 
 async function routeSingleUpcomingEnrollment(page: Page): Promise<void> {
@@ -51,7 +48,6 @@ async function routeSyntheticMoveTarget(
     const response = await route.fetch();
     const body = (await response.json()) as {
       results: ClassOccurrence[];
-      [key: string]: unknown;
     };
     const source = body.results[0];
     expect(source).toBeTruthy();
@@ -79,33 +75,49 @@ async function routeSyntheticMoveTarget(
 }
 
 async function routeMembershipAtMoveLimit(page: Page): Promise<void> {
+  let transformedResponse:
+    | Promise<{
+        status: number;
+        headers: Record<string, string>;
+        body: Record<string, unknown>;
+      }>
+    | undefined;
+
   await page.route(
     '**/memberships/?page_size=*',
     async (route) => {
-      const response = await route.fetch();
-      const body = (await response.json()) as {
-        results: Membership[];
-        [key: string]: unknown;
-      };
+      transformedResponse ??= (async () => {
+        const response = await route.fetch();
+        const body = (await response.json()) as {
+          results: Membership[];
+        };
+        return {
+          status: response.status(),
+          headers: response.headers(),
+          body: {
+            ...body,
+            results: body.results.map((membership) =>
+              membership.client_name === STUDIO_FIXTURES.paidMemberName
+                ? {
+                    ...membership,
+                    max_moves_per_month: 1,
+                    current_period: membership.current_period
+                      ? { ...membership.current_period, moves_used: 1 }
+                      : null,
+                  }
+                : membership,
+            ),
+          },
+        };
+      })();
+      const response = await transformedResponse;
       await route.fulfill({
-        response,
-        json: {
-          ...body,
-          results: body.results.map((membership) =>
-            membership.client_name === STUDIO_FIXTURES.paidMemberName
-              ? {
-                  ...membership,
-                  max_moves_per_month: 1,
-                  current_period: membership.current_period
-                    ? { ...membership.current_period, moves_used: 1 }
-                    : null,
-                }
-              : membership,
-          ),
-        },
+        status: response.status,
+        headers: response.headers,
+        contentType: 'application/json',
+        body: JSON.stringify(response.body),
       });
     },
-    { times: 1 },
   );
 }
 

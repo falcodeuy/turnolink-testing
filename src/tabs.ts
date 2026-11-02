@@ -2,10 +2,6 @@ import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { dismissNextjsPortalIfPresent } from './overlays';
 
-/**
- * Click a tab until `isReady` is true. Prefer content readiness over
- * aria-selected (MUI can leave selected=false after a successful panel swap).
- */
 export async function clickTabUntilReady(
   page: Page,
   tab: Locator,
@@ -13,19 +9,23 @@ export async function clickTabUntilReady(
   options: { timeoutMs?: number } = {},
 ): Promise<void> {
   const timeoutMs = options.timeoutMs ?? 45_000;
+  const hydrationRoot = tab.locator(
+    'xpath=ancestor::*[@data-hydrated][1]',
+  );
+  if ((await hydrationRoot.count()) > 0) {
+    await expect(hydrationRoot).toHaveAttribute('data-hydrated', 'true', {
+      timeout: 60_000,
+    });
+  }
   await expect(tab).toBeVisible({ timeout: 30_000 });
 
-  await expect
-    .poll(
-      async () => {
-        if (await isReady()) return true;
-        await dismissNextjsPortalIfPresent(page);
-        await page.keyboard.press('Escape').catch(() => undefined);
-        await tab.scrollIntoViewIfNeeded().catch(() => undefined);
-        await tab.click({ force: true }).catch(() => undefined);
-        return isReady();
-      },
-      { timeout: timeoutMs, intervals: [200, 400, 800] },
-    )
-    .toBe(true);
+  if (await isReady()) return;
+
+  await dismissNextjsPortalIfPresent(page);
+  await page.keyboard.press('Escape');
+  await tab.scrollIntoViewIfNeeded();
+  await expect(tab).toBeEnabled();
+  await tab.focus();
+  await tab.press('Enter');
+  await expect.poll(isReady, { timeout: timeoutMs }).toBe(true);
 }

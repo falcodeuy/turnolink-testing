@@ -38,24 +38,6 @@ function servicesBasePath(embed: boolean): string {
     : `${apps.public()}/${slug}/services`;
 }
 
-async function waitForReactHydration(control: Locator): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        control
-          .evaluate((element) =>
-            Object.keys(element).some(
-              (key) =>
-                key.startsWith('__reactProps$') ||
-                key.startsWith('__reactFiber$'),
-            ),
-          )
-          .catch(() => false),
-      { timeout: 60_000, intervals: [100, 200, 400] },
-    )
-    .toBe(true);
-}
-
 export async function reachAppointmentAvailability(
   page: Page,
   serviceCard?: Locator,
@@ -122,7 +104,7 @@ export async function navigateToBookingPreview(
 
   for (const variant of variantCards) {
     await expect(variant).toBeVisible({ timeout: 60_000 });
-    await waitForReactHydration(variant);
+    await expect(variant).toBeEnabled({ timeout: 60_000 });
     if (variants.length > 1) {
       await dismissNextjsPortalIfPresent(page);
       await variant.click();
@@ -267,14 +249,15 @@ export async function expectPublicSlotAvailability(
   });
   await dismissNextjsPortalIfPresent(page);
 
-  await expect(page.getByText('30 min', { exact: true })).toBeVisible({
+  const variantName = page.getByText('30 min', { exact: true });
+  await expect(variantName).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByText('30 min', { exact: true }).click();
-
-  await expect(page).toHaveURL(/\/services\/availability\/?$/, {
-    timeout: 60_000,
-  });
+  const serviceCard = page
+    .getByRole('button')
+    .filter({ has: variantName })
+    .first();
+  await reachAppointmentAvailability(page, serviceCard);
   await dismissNextjsPortalIfPresent(page);
   await expect(page.getByText('No disponible')).toBeVisible({
     timeout: 60_000,
@@ -404,7 +387,7 @@ export type PublicConfirmationKind =
   | 'direct_confirmation'
   | 'pending_at_studio';
 
-async function fillPreviewAndConfirm(
+export async function fillPreviewAndConfirm(
   page: Page,
   input: Pick<PublicBookingInput, 'clientName' | 'phone' | 'email'>,
   confirmation: PublicConfirmationKind = 'any',
@@ -513,171 +496,23 @@ export async function bookPackageOnPublicWeb(
   return { slotLabel, dayNumber };
 }
 
-async function chooseStudioOwner(
-  page: Page,
-  employeePath: RegExp,
-): Promise<void> {
-  await expect(page).toHaveURL(employeePath, { timeout: 60_000 });
-  const owner = page.getByRole('button', {
-    name: 'Seleccionar profesional E2E Owner',
-  });
-  await expect(owner).toBeVisible();
-  await expect(
-    page.getByRole('button', {
-      name: 'Seleccionar profesional E2E Instructora',
-    }),
-  ).toBeVisible();
-  await owner.click();
-  await expect(owner).toHaveAttribute('aria-pressed', 'true');
-  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
-  await expect(next).toBeEnabled();
-  await next.click();
-}
-
 async function clickUntilUrl(
   page: Page,
   control: Locator,
   expectedPath: RegExp,
 ): Promise<void> {
+  const hydrationRoot = control.locator(
+    'xpath=ancestor::*[@data-hydrated][1]',
+  );
+  if ((await hydrationRoot.count()) > 0) {
+    await expect(hydrationRoot).toHaveAttribute('data-hydrated', 'true', {
+      timeout: 60_000,
+    });
+  }
   await expect(control).toBeVisible({ timeout: 60_000 });
-  await waitForReactHydration(control);
-  await expect
-    .poll(
-      async () => {
-        if (expectedPath.test(new URL(page.url()).pathname)) return true;
-        await control.click({ timeout: 2_000 }).catch(() => undefined);
-        if (expectedPath.test(new URL(page.url()).pathname)) return true;
-        return page
-          .waitForURL(expectedPath, { timeout: 2_000 })
-          .then(() => true)
-          .catch(() => false);
-      },
-      { timeout: 60_000, intervals: [200, 400, 800] },
-    )
-    .toBe(true);
-}
-
-/**
- * Drop-in class booking against `e2e_prepare studio` fixtures.
- */
-export async function bookDropInClassOnPublicWeb(
-  page: Page,
-  input: PublicBookingInput & {
-    classTypeName?: string;
-    confirmation?: PublicConfirmationKind;
-  },
-): Promise<PublicBookingResult> {
-  assertNotProductionWriteContext('create a public drop-in booking');
-
-  const classTypeName = input.classTypeName ?? 'E2E Pilates';
-
-  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
-  await dismissNextjsPortalIfPresent(page);
-
-  const card = page.getByRole('button', {
-    name: `Clase suelta: ${classTypeName}`,
-  });
-  await dismissNextjsPortalIfPresent(page);
-  await clickUntilUrl(page, card, /\/services\/class-employees\/?$/);
-
-  await chooseStudioOwner(page, /\/services\/class-employees\/?$/);
-  await expect(page).toHaveURL(/\/services\/class-availability\/?$/, {
-    timeout: 60_000,
-  });
-  await expect(
-    page.getByRole('heading', { name: /disponibilidad/i }),
-  ).toBeVisible();
-
-  const dayNumber = await selectFirstAvailableDay(page);
-  const slotLabel = await selectFirstOpenClassSlot(page);
-
-  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
-  await expect(next).toBeEnabled({ timeout: 30_000 });
-  await next.click();
-
-  await fillPreviewAndConfirm(page, input, input.confirmation ?? 'any');
-  return { slotLabel, dayNumber };
-}
-
-/**
- * Membership signup against `e2e_prepare studio` fixtures.
- */
-export async function bookMembershipOnPublicWeb(
-  page: Page,
-  input: PublicBookingInput & {
-    planName?: string;
-    sessionsPerWeek?: number;
-  },
-): Promise<void> {
-  assertNotProductionWriteContext('create a public membership signup');
-
-  const planName = input.planName ?? 'E2E 2x semana';
-  const sessionsPerWeek = input.sessionsPerWeek ?? 2;
-
-  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
-  await dismissNextjsPortalIfPresent(page);
-
-  const card = page.getByRole('button', { name: `Membresía: ${planName}` });
-  await dismissNextjsPortalIfPresent(page);
-  await clickUntilUrl(page, card, /\/services\/membership-employees\/?$/);
-
-  await chooseStudioOwner(page, /\/services\/membership-employees\/?$/);
-  await expect(page).toHaveURL(/\/services\/membership\/?$/, {
-    timeout: 60_000,
-  });
-  await expect(
-    page.getByRole('heading', { name: /tu semana fija/i }),
-  ).toBeVisible();
-
-  const seriesButtons = page.getByRole('button').filter({
-    has: page.getByText(/^\d{2}:\d{2}$/),
-  });
-  await expect(seriesButtons.first()).toBeVisible({ timeout: 60_000 });
-
-  const count = await seriesButtons.count();
-  if (count < sessionsPerWeek) {
-    throw new Error(
-      `Need ${sessionsPerWeek} weekly series slots, found ${count}`,
-    );
-  }
-  for (let i = 0; i < sessionsPerWeek; i += 1) {
-    await seriesButtons.nth(i).click();
-  }
-
-  await expect(page.getByText(/listo · seguí al checkout/i)).toBeVisible({
-    timeout: 15_000,
-  });
-
-  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
-  await expect(next).toBeEnabled({ timeout: 15_000 });
-  await next.click();
-
-  await fillPreviewAndConfirm(page, input);
-}
-
-/**
- * Credit pack purchase against `e2e_prepare studio` fixtures.
- */
-export async function bookCreditPackOnPublicWeb(
-  page: Page,
-  input: PublicBookingInput & { packName?: string },
-): Promise<void> {
-  assertNotProductionWriteContext('create a public credit pack purchase');
-
-  const packName = input.packName ?? 'E2E Pack 4';
-
-  await page.goto(servicesBasePath(false), { waitUntil: 'domcontentloaded' });
-  await dismissNextjsPortalIfPresent(page);
-
-  const card = page.getByRole('button', {
-    name: `Pack de créditos: ${packName}`,
-  });
-  await expect(card).toBeVisible({ timeout: 60_000 });
-  await dismissNextjsPortalIfPresent(page);
-  await card.click({ force: true });
-
-  await expect(page).toHaveURL(/\/services\/preview\/?$/, {
-    timeout: 60_000,
-  });
-  await fillPreviewAndConfirm(page, input, 'pending_at_studio');
+  await expect(control).toBeEnabled({ timeout: 60_000 });
+  await Promise.all([
+    page.waitForURL(expectedPath, { timeout: 60_000 }),
+    control.click(),
+  ]);
 }

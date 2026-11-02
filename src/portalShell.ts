@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { openProfessionalMobileNavIfNeeded } from './mobile';
 import { dismissNonEssentialOverlays } from './overlays';
+import { clickTabUntilReady } from './tabs';
 
 /** Expand a nested sidebar group and assert a child link is visible. */
 export async function expandSidebarGroup(
@@ -33,8 +34,14 @@ export async function openCompanyEmployeeCreateModal(
   await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole('tab', { name: 'Equipo', exact: true }).click();
-  await page
+  const company = page.locator('[data-hydrated]');
+  const teamTab = company.getByRole('tab', { name: 'Equipo', exact: true });
+  await clickTabUntilReady(
+    page,
+    teamTab,
+    async () => (await teamTab.getAttribute('aria-selected')) === 'true',
+  );
+  await company
     .getByRole('button', { name: 'Agregar nuevo', exact: true })
     .click();
   await expect(

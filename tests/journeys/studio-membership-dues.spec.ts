@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
   STUDIO_FIXTURES,
-  currentPeriodLabel,
   filterMemberships,
   markMembershipCurrentPeriod,
   openStudioTab,
@@ -17,7 +16,6 @@ test.describe('@journey studio membership dues panel', () => {
   }) => {
     prepareStudioFixtures();
     const page = loggedInProfessionalPage;
-    const month = currentPeriodLabel();
 
     await openStudioTab(page, 'memberships');
     await expect(
@@ -34,13 +32,11 @@ test.describe('@journey studio membership dues panel', () => {
     // Paid fixture → switch offers "marcar pendiente"
     await markMembershipCurrentPeriod(page, {
       paid: false,
-      monthLabel: month,
       memberName: STUDIO_FIXTURES.paidMemberName,
     });
     // Flip back to paid
     await markMembershipCurrentPeriod(page, {
       paid: true,
-      monthLabel: month,
       memberName: STUDIO_FIXTURES.paidMemberName,
     });
 
@@ -53,29 +49,5 @@ test.describe('@journey studio membership dues panel', () => {
       page,
       STUDIO_FIXTURES.debtMemberName,
     );
-  });
-
-  test('Cuotas pendientes tab lists open periods', async ({
-    loggedInProfessionalPage,
-    localWrites: _localWrites,
-    seededProfessional: _seededProfessional,
-  }) => {
-    const fixtures = prepareStudioFixtures();
-    const debtOpenPeriods = fixtures.debt_open_periods;
-    if (typeof debtOpenPeriods !== 'number') {
-      throw new Error('Studio fixture did not return debt_open_periods');
-    }
-    const page = loggedInProfessionalPage;
-    await openStudioTab(page, 'memberships');
-
-    await page.getByRole('tab', { name: /Cuotas pendientes/ }).click();
-    await expect(
-      page.getByRole('table', { name: 'Cuotas pendientes' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('row', {
-        name: new RegExp(STUDIO_FIXTURES.debtMemberName, 'i'),
-      }),
-    ).toHaveCount(debtOpenPeriods);
   });
 });

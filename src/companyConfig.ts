@@ -46,7 +46,7 @@ async function configurationTabReady(
         .catch(() => false);
     case 'Reservas Online':
       return page
-        .getByText(/Cómo quieres recibir reservas/i)
+        .locator('[data-form-initialized="true"]')
         .isVisible()
         .catch(() => false);
     case 'Horarios':

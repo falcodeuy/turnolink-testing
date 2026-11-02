@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/e2e';
-import { bookMembershipOnPublicWeb } from '../../src/booking';
+import { bookMembershipOnPublicWeb } from '../../src/studioBooking';
 import { prepareStudioFixtures } from '../../src/studio';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
