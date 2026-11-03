@@ -21,5 +21,17 @@ test.describe('@screen configuration reservas online fields', () => {
     await expect(
       page.getByRole('button', { name: 'Guardar cambios' }),
     ).toBeVisible();
+
+    const intervalCombo = page
+      .getByRole('heading', { name: 'Habilitar reservas cada' })
+      .locator('xpath=following::div[@role="combobox"][1]');
+    await intervalCombo.click();
+    await expect(
+      page.getByRole('option', { name: '30m', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('option', { name: '1h', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
   });
 });

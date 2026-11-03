@@ -99,6 +99,9 @@ test.describe('@screen professional booking diagnostic', () => {
       }),
     ).toBeVisible();
     await expect(page.getByText('Disponible', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Duración: 30m', { exact: true }),
+    ).toBeVisible();
   });
 
   test('renders an unbookable diagnostic and its reason', async ({

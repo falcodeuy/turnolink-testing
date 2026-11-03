@@ -10,7 +10,7 @@ test.describe('@journey company config interval slots', () => {
   }) => {
     try {
       await updateOnlineBookingSettingsInPanel(loggedInProfessionalPage, {
-        intervalLabel: '1 hora',
+        intervalLabel: '1h',
       });
 
       const publicContext = await createRecordedContext();
@@ -25,7 +25,7 @@ test.describe('@journey company config interval slots', () => {
       }
 
       await updateOnlineBookingSettingsInPanel(loggedInProfessionalPage, {
-        intervalLabel: '30 minutos',
+        intervalLabel: '30m',
       });
 
       const halfHour = await listPublicAvailabilitySlots(publicPage);
@@ -36,7 +36,7 @@ test.describe('@journey company config interval slots', () => {
       ).toBeTruthy();
     } finally {
       await updateOnlineBookingSettingsInPanel(loggedInProfessionalPage, {
-        intervalLabel: '30 minutos',
+        intervalLabel: '30m',
       });
     }
   });

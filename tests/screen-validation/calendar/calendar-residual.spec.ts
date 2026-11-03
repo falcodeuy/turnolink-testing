@@ -215,4 +215,24 @@ test.describe('@screen Calendar residual states', () => {
       page.getByRole('button', { name: /Ver inscriptos de E2E Pilates/i }),
     ).toHaveCount(0);
   });
+
+  test('service filter keeps studio class occurrences visible', async ({
+    loggedInProfessionalPage,
+    seededProfessional: _seededProfessional,
+  }) => {
+    const page = loggedInProfessionalPage;
+    await openCalendar(page);
+    await page.getByRole('button', { name: 'Mes', exact: true }).click();
+
+    const classEvent = page.getByRole('button', {
+      name: /Ver inscriptos de E2E Pilates/i,
+    });
+    await expect(classEvent.first()).toBeVisible({ timeout: 30_000 });
+
+    const service = page.getByPlaceholder('Servicio');
+    await service.click();
+    await page.getByRole('option', { name: '30 min', exact: true }).click();
+    await expect(service).toHaveValue('30 min');
+    await expect(classEvent.first()).toBeVisible();
+  });
 });
