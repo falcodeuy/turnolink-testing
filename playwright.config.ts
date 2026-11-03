@@ -6,6 +6,8 @@ import { videoModeFromEnv } from './src/videoPolicy';
 assertNotAccidentalProductionRun();
 
 const isProduction = env.targetEnv === 'production';
+const chromiumExecutablePath =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 /**
  * See https://playwright.dev/docs/test-configuration
@@ -42,6 +44,9 @@ export default defineConfig({
     actionTimeout: 15_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    launchOptions: chromiumExecutablePath
+      ? { executablePath: chromiumExecutablePath }
+      : undefined,
     // Keep videos for passed tests too (review journeys locally).
     // Override with E2E_VIDEO=retain-on-failure|off if artifacts get large.
     video: videoModeFromEnv(),

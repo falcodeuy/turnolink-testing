@@ -41,4 +41,34 @@ test.describe('@journey studio roster check-in', () => {
 
     await page.getByRole('button', { name: 'Cerrar' }).click();
   });
+
+  test('shows booking comments and registers a drop-in payment', async ({
+    loggedInProfessionalPage,
+    localWrites: _localWrites,
+    seededProfessional: _seededProfessional,
+  }) => {
+    prepareStudioFixtures();
+    const page = loggedInProfessionalPage;
+    await openStudioTab(page, 'schedule');
+    await openStudioEnrollmentsChip(page, 'Lunes');
+
+    const enrollment = page.getByRole('group', {
+      name: `Inscripción de ${STUDIO_FIXTURES.dropInMemberName}`,
+    });
+    await expect(enrollment).toBeVisible();
+    await expect(
+      enrollment.getByText(`Comentario: ${STUDIO_FIXTURES.dropInNote}`),
+    ).toBeVisible();
+
+    await enrollment.getByRole('button', { name: 'Registrar pago' }).click();
+    await expect(
+      page.getByRole('heading', { name: '¿Registrar pago de la clase?' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Aceptar' }).click();
+
+    await expect(page.getByText('Pago registrado')).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(enrollment.getByText('Pagado', { exact: true })).toBeVisible();
+  });
 });

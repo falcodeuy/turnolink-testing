@@ -1,13 +1,11 @@
 import { test, expect } from '../../fixtures/e2e';
 import {
-  STUDIO_FIXTURES,
-  filterMemberships,
   openStudioTab,
   prepareStudioFixtures,
 } from '../../src/studio';
 
-test.describe('@journey studio unpaid membership filter', () => {
-  test('Solo con deuda shows debt member and hides paid fixture', async ({
+test.describe('@journey studio membership debt navigation', () => {
+  test('uses the pending dues tab instead of a redundant unpaid filter', async ({
     loggedInProfessionalPage,
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
@@ -16,30 +14,12 @@ test.describe('@journey studio unpaid membership filter', () => {
     const page = loggedInProfessionalPage;
 
     await openStudioTab(page, 'memberships');
-    await filterMemberships(page, 'E2E Alumna');
-
     await expect(
-      page.getByRole('button', {
-        name: `Horarios de ${STUDIO_FIXTURES.paidMemberName}`,
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', {
-        name: `Horarios de ${STUDIO_FIXTURES.debtMemberName}`,
-      }),
-    ).toBeVisible();
-
-    await page.getByRole('checkbox', { name: 'Solo con deuda' }).check();
-
-    await expect(
-      page.getByRole('button', {
-        name: `Horarios de ${STUDIO_FIXTURES.debtMemberName}`,
-      }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', {
-        name: `Horarios de ${STUDIO_FIXTURES.paidMemberName}`,
-      }),
+      page.getByRole('checkbox', { name: 'Solo con deuda' }),
     ).toHaveCount(0);
+    await page.getByRole('tab', { name: /Cuotas pendientes/ }).click();
+    await expect(
+      page.getByRole('table', { name: 'Cuotas pendientes' }),
+    ).toBeVisible();
   });
 });

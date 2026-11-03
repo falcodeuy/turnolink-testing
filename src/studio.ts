@@ -12,6 +12,8 @@ export const STUDIO_FIXTURES = {
   instructorName: 'E2E Instructora',
   paidMemberName: 'E2E Alumna Al Día',
   debtMemberName: 'E2E Alumna Con Deuda',
+  dropInMemberName: 'E2E Alumna Clase Suelta',
+  dropInNote: 'Necesito una colchoneta.',
 } as const;
 
 export function prepareStudioFixtures(): Record<string, unknown> {
@@ -127,6 +129,11 @@ export async function payDebtMembershipViaCuotasModal(
   await expect(page.getByText(/marcada como paga/i)).toBeVisible({
     timeout: 30_000,
   });
+  await expect(
+    page.getByRole('heading', {
+      name: new RegExp(`Cuotas de ${escapeRegExp(memberName)}`, 'i'),
+    }),
+  ).toBeVisible();
 }
 
 export async function openMembershipHorarios(
