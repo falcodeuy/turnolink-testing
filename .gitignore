@@ -11,6 +11,8 @@ node_modules/
 artifacts/test-results/
 artifacts/playwright-report/
 artifacts/blob-report/
+artifacts/journey-review/
+artifacts/app-tour/
 test-results/
 playwright-report/
 blob-report/

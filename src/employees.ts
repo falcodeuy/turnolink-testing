@@ -3,6 +3,8 @@ import { expect } from '@playwright/test';
 import { apps } from './apps';
 import { loginProfessionalViaApi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { clickTabUntilReady } from './tabs';
+import { uniquePhone } from './unique';
 
 export type CreateCompanyEmployeeOptions = {
   name: string;
@@ -26,6 +28,18 @@ export type ExpectEmployeeDetailsOptions = {
   notifyWhatsApp?: boolean;
 };
 
+async function equipoTabReady(page: Page): Promise<boolean> {
+  const onServicios = await page
+    .locator('#search-service')
+    .isVisible()
+    .catch(() => false);
+  if (onServicios) return false;
+  return page
+    .getByText('E2E Owner', { exact: true })
+    .isVisible()
+    .catch(() => false);
+}
+
 async function gotoCompanyEquipo(page: Page): Promise<void> {
   await page.goto(`${apps.professional()}/portal/my-company`, {
     waitUntil: 'domcontentloaded',
@@ -33,15 +47,19 @@ async function gotoCompanyEquipo(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Empresa' })).toBeVisible({
     timeout: 60_000,
   });
-  await page.getByRole('tab', { name: 'Equipo' }).click();
-  await expect(page.getByRole('tab', { name: 'Equipo' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  // "Agregar nuevo" is shared across Empresa tabs — do not use it as ready signal.
+  const tab = page.getByRole('tab', { name: 'Equipo', exact: true });
+  await clickTabUntilReady(page, tab, () => equipoTabReady(page));
+  await expect(
+    page.getByRole('button', { name: 'Agregar nuevo', exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 /** First icon button on the employee row opens the edit modal. */
-async function openEmployeeEditRow(page: Page, employeeName: string): Promise<void> {
+async function openEmployeeEditRow(
+  page: Page,
+  employeeName: string,
+): Promise<void> {
   const row = page
     .locator('div')
     .filter({ has: page.getByText(employeeName, { exact: true }) })
@@ -62,7 +80,7 @@ export async function createCompanyEmployeeInPanel(
 ): Promise<void> {
   assertNotProductionWriteContext('create a company employee');
 
-  const phone = options.phone ?? '099111222';
+  const phone = options.phone ?? uniquePhone();
   const role = options.role ?? 'Empleado';
   const branch = options.branch ?? 'E2E Branch';
   const capacity = options.capacity ?? '1';
@@ -84,7 +102,10 @@ export async function createCompanyEmployeeInPanel(
 
   await page.getByRole('combobox').nth(1).click();
   await page.getByRole('option', { name: branch, exact: true }).click();
-  await page.getByRole('listbox').getByRole('button', { name: 'Cerrar' }).click();
+  await page
+    .getByRole('listbox')
+    .getByRole('button', { name: 'Cerrar' })
+    .click();
   await expect(page.getByRole('listbox')).toHaveCount(0);
 
   const capacityField = page.locator('#capacity');
@@ -106,10 +127,7 @@ export async function createCompanyEmployeeInPanel(
   }
   if (options.notifyWhatsApp === false && (await waNotif.isChecked())) {
     await waNotif.click();
-  } else if (
-    options.notifyWhatsApp === true &&
-    !(await waNotif.isChecked())
-  ) {
+  } else if (options.notifyWhatsApp === true && !(await waNotif.isChecked())) {
     await waNotif.click();
   }
   if (options.notifyEmail !== undefined) {

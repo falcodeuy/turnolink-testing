@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures/e2e';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
 import {
-  assertE2eCalendarConnected,
+  getE2eCalendarConnection,
   verifyBookingInGoogleCalendar,
 } from '../../src/calendar';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
@@ -16,7 +16,11 @@ test.describe('@integration @calendar booking appears in Google Calendar', () =>
     // Calendar poll + Google API can exceed the suite default.
     test.setTimeout(240_000);
 
-    assertE2eCalendarConnected();
+    const calendarConnection = getE2eCalendarConnection();
+    test.skip(
+      !calendarConnection.connected,
+      `Google Calendar is not connected for ${calendarConnection.employeeEmail}`,
+    );
 
     const clientName = uniqueLabel('E2E Calendar');
     const phone = uniquePhone('098');

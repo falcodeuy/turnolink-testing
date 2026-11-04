@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures/e2e';
 import { bookAppointmentOnPublicWeb } from '../../src/booking';
 import { expectClientInProfessionalPanel } from '../../src/clients';
+import { prepareE2eScenarioForSlug } from '../../src/djangoManage';
 import { uniqueEmail, uniqueLabel, uniquePhone } from '../../src/unique';
 
 test.describe('@journey client appears after booking', () => {
@@ -9,7 +10,9 @@ test.describe('@journey client appears after booking', () => {
     localWrites: _localWrites,
     seededProfessional: _seededProfessional,
     seededCompany: _seededCompany,
+    workerCompany,
   }) => {
+    prepareE2eScenarioForSlug('appointment', workerCompany.slug);
     const clientName = uniqueLabel('E2E Cliente');
     const phone = uniquePhone('098');
     const email = uniqueEmail('e2e.cliente');

@@ -1,10 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/env';
 import { assertNotAccidentalProductionRun } from './src/safety';
+import { videoModeFromEnv } from './src/videoPolicy';
 
 assertNotAccidentalProductionRun();
 
 const isProduction = env.targetEnv === 'production';
+const chromiumExecutablePath =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 /**
  * See https://playwright.dev/docs/test-configuration
@@ -17,10 +20,16 @@ const isProduction = env.targetEnv === 'production';
 export default defineConfig({
   testDir: './tests',
   testMatch: isProduction ? /production\/.*\.spec\.ts/ : /.*\.spec\.ts/,
+  testIgnore: isProduction ? [] : /production\/.*\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Keep in sync with `npm run seed` (e2e_platform_seed --workers).
+  // Default 4 locally/CI so parallelIndex never exceeds seeded tenants.
+  workers: Math.max(
+    1,
+    Number(process.env.WORKERS ?? (process.env.CI ? '2' : '4')) || 1,
+  ),
   // Journeys (booking, onboarding, company config) commonly exceed 60s locally.
   timeout: 180_000,
   expect: { timeout: 15_000 },
@@ -35,29 +44,22 @@ export default defineConfig({
     actionTimeout: 15_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    launchOptions: chromiumExecutablePath
+      ? { executablePath: chromiumExecutablePath }
+      : undefined,
     // Keep videos for passed tests too (review journeys locally).
     // Override with E2E_VIDEO=retain-on-failure|off if artifacts get large.
-    video: parseVideoMode(process.env.E2E_VIDEO),
+    video: videoModeFromEnv(),
   },
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      // Same specs as chromium; helpers inherit viewport via fixtures/e2e.
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
   ],
 });
-
-function parseVideoMode(
-  value: string | undefined,
-): 'on' | 'off' | 'retain-on-failure' {
-  switch ((value ?? 'on').trim().toLowerCase()) {
-    case 'off':
-      return 'off';
-    case 'retain-on-failure':
-    case 'failure':
-      return 'retain-on-failure';
-    case 'on':
-    default:
-      return 'on';
-  }
-}

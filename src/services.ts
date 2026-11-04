@@ -50,6 +50,7 @@ export async function createCompanyServiceInPanel(
 
   await page.getByRole('combobox').first().click();
   await page.getByRole('option', { name: durationLabel, exact: true }).click();
+  await expect(page.getByRole('listbox')).toBeHidden({ timeout: 10_000 });
 
   await page.locator('#price').fill(price);
 
@@ -57,8 +58,10 @@ export async function createCompanyServiceInPanel(
   await expect(page.getByText('E2E Owner')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('E2E Branch')).toBeVisible();
 
-  await page.getByRole('combobox').nth(1).click();
+  const categoryCombobox = page.getByRole('combobox').nth(1);
+  await categoryCombobox.click();
   await page.getByRole('option', { name: category, exact: true }).click();
+  await expect(page.getByRole('listbox')).toBeHidden({ timeout: 10_000 });
 
   const save = page.getByRole('button', { name: 'Guardar cambios' });
   await expect(save).toBeEnabled({ timeout: 30_000 });
@@ -68,7 +71,7 @@ export async function createCompanyServiceInPanel(
     timeout: 60_000,
   });
   await expect(
-    page.getByRole('button', { name: 'Crear nuevo servicio' }),
+    page.getByRole('button', { name: /Crear otro|Crear nuevo servicio/i }),
   ).toBeVisible();
 }
 

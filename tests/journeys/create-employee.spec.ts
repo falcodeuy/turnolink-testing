@@ -17,7 +17,6 @@ test.describe('@journey create company employee', () => {
     await createCompanyEmployeeInPanel(loggedInProfessionalPage, {
       name: employeeName,
       email: employeeEmail,
-      phone: '099111222',
       role: 'Manager',
       branch: 'E2E Branch',
     });

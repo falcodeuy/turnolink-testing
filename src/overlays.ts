@@ -5,9 +5,28 @@ import type { Page } from '@playwright/test';
  * Call from helpers (launch/auth/journey), not from specs.
  */
 export async function dismissHelpModalIfPresent(page: Page): Promise<void> {
+  const helpOpen = page.getByRole('heading', { name: /Necesitas ayuda/i });
   const close = page.getByRole('button', { name: 'cerrar' });
+  if (await helpOpen.isVisible().catch(() => false)) {
+    if (await close.isVisible().catch(() => false)) {
+      await close.click({ force: true }).catch(() => undefined);
+    } else {
+      await page.keyboard.press('Escape').catch(() => undefined);
+    }
+    await helpOpen.waitFor({ state: 'hidden' }).catch(() => undefined);
+    return;
+  }
   if (await close.isVisible().catch(() => false)) {
-    await close.click();
+    await close.click({ force: true }).catch(() => undefined);
+  }
+}
+
+/** Post-onboarding / dashboard referral nudge. */
+export async function dismissReferralNudgeIfPresent(page: Page): Promise<void> {
+  const dismiss = page.getByRole('button', { name: 'Ahora no' });
+  if (await dismiss.isVisible().catch(() => false)) {
+    await dismiss.click();
+    await dismiss.waitFor({ state: 'hidden' }).catch(() => undefined);
   }
 }
 
@@ -25,4 +44,5 @@ export async function dismissNextjsPortalIfPresent(page: Page): Promise<void> {
 export async function dismissNonEssentialOverlays(page: Page): Promise<void> {
   await dismissNextjsPortalIfPresent(page);
   await dismissHelpModalIfPresent(page);
+  await dismissReferralNudgeIfPresent(page);
 }

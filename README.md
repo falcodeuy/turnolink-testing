@@ -12,9 +12,12 @@ Agent rules: **[AGENTS.md](AGENTS.md)**. Install company plugins from
 |-------|------|---------|
 | Smoke | `tests/smoke/` | App reachable |
 | Auth | `tests/auth/` | Professional login (needs `npm run seed`) |
+| Screen validation | `tests/screen-validation/` | Same-screen guards via midpoint (`npm run test:screen`) |
 | Journeys | `tests/journeys/` | Cross-app business flows |
 | Integrations | `tests/integrations/` | Externals (Calendar, …) — opt-in |
 | Production | `tests/production/` | Read-only against live production |
+
+Case catalog: [docs/test-cases.md](docs/test-cases.md).
 
 ```text
 turnolink-testing
@@ -29,8 +32,8 @@ turnolink-testing
 ## Layout
 
 ```text
-tests/{smoke,auth,journeys,integrations,production}/
-fixtures/e2e.ts          # Playwright fixtures
+tests/{smoke,auth,screen-validation,journeys,integrations,production}/
+fixtures/e2e.ts          # Playwright fixtures (workerCompany, e2e leases)
 fixtures/images/         # Static upload assets
 src/                     # Helpers (booking, auth, overlays, unique, …)
 scripts/                 # check-env, env-smoke, explore-cli, a11y-dump, django-e2e
@@ -41,6 +44,7 @@ artifacts/               # gitignored reports/videos
 |------------|------------|
 | Reachability check | `tests/smoke/` |
 | Login / session | `tests/auth/` + `src/professionalAuth.ts` |
+| Same-screen guards | `tests/screen-validation/` + `src/screenMidpoints.ts` |
 | Business journey | `tests/journeys/` + `src/*` helpers + `fixtures/e2e` |
 | Google Calendar etc. | `tests/integrations/` + `src/calendar.ts` |
 | Production read-only | `tests/production/` |
@@ -48,18 +52,22 @@ artifacts/               # gitignored reports/videos
 
 ## Backend data
 
-Domain fixtures live in **turnolink-backend** (`e2e_seed`, `e2e_reset`, `e2e_prepare`).
-Use the backend **existing venv** — never create one here.
+Domain fixtures live in **turnolink-backend** (`e2e_platform_seed`, `e2e_seed`,
+`e2e_reset`, `e2e_prepare`, `e2e_run`). Use the backend **existing venv** — never
+create one here.
 
 ```bash
-npm run seed
-npm run reset
-npm run e2e:prepare -- onboarding
+WORKERS=4 npm run seed          # one company per Playwright worker
+npm run reset -- --slug turnolink-e2e
+npm run e2e:prepare -- studio --slug turnolink-e2e
+npm run test:journeys           # default WORKERS=4
+npm run test:screen
 ```
 
 | Scenario | Purpose |
 |----------|---------|
-| `onboarding` | User at step 0 + company/branch (skips email verify). Distinct `--email` per parallel spec. |
+| `onboarding` | User at step 0 (skips email verify). Distinct `--email` per parallel spec. |
+| `studio` / `package` | Pass `--slug` matching the worker company. |
 
 Guards: blocked when `DJANGO_ENV=production` unless `E2E_TOOLS_ENABLED=true`.
 Fixture patterns: plugin skill **`playwright-e2e-fixtures`** (web-testing).

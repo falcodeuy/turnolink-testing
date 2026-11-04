@@ -3,9 +3,15 @@ import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { prepareE2eScenario } from './djangoManage';
 import type { ProfessionalCredentials } from './env';
-import { dismissHelpModalIfPresent } from './overlays';
+import { openProfessionalMobileNavIfNeeded } from './mobile';
+import {
+  dismissHelpModalIfPresent,
+  dismissNextjsPortalIfPresent,
+  dismissReferralNudgeIfPresent,
+} from './overlays';
 import { loginProfessionalViaUi } from './professionalAuth';
 import { assertNotProductionWriteContext } from './safety';
+import { uniqueEmail, uniquePhone } from './unique';
 
 export type OnboardingUser = ProfessionalCredentials & {
   name: string;
@@ -55,15 +61,12 @@ export function prepareE2eOnboardingUser(
 ): OnboardingUser {
   assertNotProductionWriteContext('prepare E2E onboarding user');
 
-  const extraArgs: string[] = [];
-  if (overrides.email) {
-    extraArgs.push('--email', overrides.email);
-  }
+  const email =
+    overrides.email ?? uniqueEmail('e2e.onboarding', 'turnolink.local');
+  const phone = overrides.phone ?? uniquePhone('091');
+  const extraArgs: string[] = ['--email', email, '--phone', phone];
   if (overrides.password) {
     extraArgs.push('--password', overrides.password);
-  }
-  if (overrides.phone) {
-    extraArgs.push('--phone', overrides.phone);
   }
   if (overrides.name) {
     extraArgs.push('--name', overrides.name);
@@ -71,16 +74,16 @@ export function prepareE2eOnboardingUser(
 
   const payload = prepareE2eScenario('onboarding', extraArgs);
 
-  const email = String(payload.email ?? '');
+  const preparedEmail = String(payload.email ?? '');
   const password = String(payload.password ?? '');
-  if (!email || !password) {
+  if (!preparedEmail || !password) {
     throw new Error(
       `e2e_prepare onboarding returned incomplete credentials: ${JSON.stringify(payload)}`,
     );
   }
 
   return {
-    email,
+    email: preparedEmail,
     password,
     name: String(payload.name ?? 'E2E Onboarding'),
     companyId: Number(payload.company_id),
@@ -97,7 +100,19 @@ async function continueOnboarding(page: Page): Promise<void> {
     exact: true,
   });
   await expect(continueButton).toBeEnabled({ timeout: 30_000 });
-  await continueButton.click();
+  // Floating help panel frequently covers Continuar on mobile viewports.
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await dismissHelpModalIfPresent(page);
+    await dismissNextjsPortalIfPresent(page);
+    try {
+      await continueButton.click({ timeout: 5_000 });
+      return;
+    } catch {
+      await page.keyboard.press('Escape').catch(() => undefined);
+    }
+  }
+  await dismissHelpModalIfPresent(page);
+  await continueButton.click({ force: true });
 }
 
 async function pickDigitalClockTime(
@@ -141,7 +156,11 @@ async function fillScheduleBlocks(
 ): Promise<void> {
   let textboxIndex = 0;
 
-  for (let scheduleIndex = 0; scheduleIndex < schedules.length; scheduleIndex++) {
+  for (
+    let scheduleIndex = 0;
+    scheduleIndex < schedules.length;
+    scheduleIndex++
+  ) {
     if (scheduleIndex > 0) {
       await page.getByRole('button', { name: 'Agregar horario' }).click();
     }
@@ -155,7 +174,11 @@ async function fillScheduleBlocks(
       // Prior rows already swapped their "+" for remove; target the newest "+".
       await page.getByRole('button', { name: 'add' }).last().click();
       await pickDigitalClockTime(page, textboxIndex, block.secondRange.opening);
-      await pickDigitalClockTime(page, textboxIndex + 1, block.secondRange.closing);
+      await pickDigitalClockTime(
+        page,
+        textboxIndex + 1,
+        block.secondRange.closing,
+      );
       textboxIndex += 2;
     }
 
@@ -177,7 +200,9 @@ async function uploadOnboardingImages(
   images: { logo?: string; banner?: string },
 ): Promise<void> {
   if (images.logo) {
-    await page.locator('#profile-image').setInputFiles(resolveFixturePath(images.logo));
+    await page
+      .locator('#profile-image')
+      .setInputFiles(resolveFixturePath(images.logo));
     await page.getByRole('button', { name: 'Recortar' }).click();
     await expect(page.locator('img[alt="profile-image-preview"]')).toBeVisible({
       timeout: 30_000,
@@ -188,9 +213,11 @@ async function uploadOnboardingImages(
     await page
       .locator('#profile-banner')
       .setInputFiles(resolveFixturePath(images.banner));
-    await expect(page.locator('img[alt="profile-banner-preview"]')).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(page.locator('img[alt="profile-banner-preview"]')).toBeVisible(
+      {
+        timeout: 30_000,
+      },
+    );
   }
 }
 
@@ -227,14 +254,18 @@ export async function completeProfessionalOnboarding(
   await continueOnboarding(page);
 
   await expect(page).toHaveURL(/\/company\/schedule/, { timeout: 60_000 });
-  await expect(page.getByRole('heading', { name: /^horarios$/i })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /^horarios$/i }),
+  ).toBeVisible();
   await dismissHelpModalIfPresent(page);
 
   await fillScheduleBlocks(page, schedules);
   await continueOnboarding(page);
 
   await expect(page).toHaveURL(/\/company\/services/, { timeout: 60_000 });
-  await expect(page.getByRole('heading', { name: /^servicios$/i })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /^servicios$/i }),
+  ).toBeVisible();
   await dismissHelpModalIfPresent(page);
 
   if (skipServices) {
@@ -259,6 +290,7 @@ export async function completeProfessionalOnboarding(
     page.getByRole('heading', { name: /¡felicidades!/i }),
   ).toBeVisible({ timeout: 60_000 });
   await expect(page).toHaveURL(/\/portal\/dashboard/, { timeout: 30_000 });
+  await dismissReferralNudgeIfPresent(page);
 }
 
 export async function runOnboardingJourney(
@@ -271,6 +303,9 @@ export async function runOnboardingJourney(
 }
 
 export async function expectOnboardingDashboard(page: Page): Promise<void> {
+  await dismissReferralNudgeIfPresent(page);
+  // Mobile/tablet: sidebar links live in the drawer behind the menu button.
+  await openProfessionalMobileNavIfNeeded(page);
   await expect(
     page.getByRole('link', { name: /Panel principal|Escritorio/ }),
   ).toBeVisible({ timeout: 30_000 });

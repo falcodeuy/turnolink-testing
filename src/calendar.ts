@@ -1,14 +1,14 @@
 import { runManageJson } from './djangoManage';
 
-export function assertE2eCalendarConnected(): void {
+export function getE2eCalendarConnection(): {
+  connected: boolean;
+  employeeEmail: string;
+} {
   const payload = runManageJson('e2e_calendar_status', []);
-  if (!payload.connected) {
-    throw new Error(
-      'Google Calendar is not connected for the E2E owner.\n' +
-        `Log into the professional panel as ${String(payload.employee_email ?? 'e2e-owner')} ` +
-        '→ connect Google Calendar once → re-run this test.',
-    );
-  }
+  return {
+    connected: payload.connected === true,
+    employeeEmail: String(payload.employee_email ?? 'e2e-owner'),
+  };
 }
 
 export function verifyBookingInGoogleCalendar(clientName: string): {

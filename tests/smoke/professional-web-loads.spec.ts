@@ -14,6 +14,10 @@ test('@smoke professional web loads login', async ({ page }) => {
     page.getByRole('heading', { name: /inicia sesión/i }),
   ).toBeVisible();
   await expect(page.locator('#email')).toBeVisible();
+  await expect(page.locator('#email')).toHaveAttribute('type', 'email');
   await expect(page.locator('#password')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Ingresar' })).toBeVisible();
+  await expect(page.locator('#password')).toHaveAttribute('type', 'password');
+  const submit = page.getByRole('button', { name: 'Ingresar' });
+  await expect(submit).toBeVisible();
+  await expect(submit).toBeDisabled();
 });
