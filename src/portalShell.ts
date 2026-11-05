@@ -36,11 +36,18 @@ export async function openCompanyEmployeeCreateModal(
   });
   const company = page.locator('[data-hydrated]');
   const teamTab = company.getByRole('tab', { name: 'Equipo', exact: true });
-  await clickTabUntilReady(
-    page,
-    teamTab,
-    async () => (await teamTab.getAttribute('aria-selected')) === 'true',
-  );
+  await clickTabUntilReady(page, teamTab, async () => {
+    if ((await teamTab.getAttribute('aria-selected')) !== 'true') return false;
+    const onServicios = await page
+      .locator('#search-service')
+      .isVisible()
+      .catch(() => false);
+    if (onServicios) return false;
+    return page
+      .getByText('E2E Owner', { exact: true })
+      .isVisible()
+      .catch(() => false);
+  });
   await company
     .getByRole('button', { name: 'Agregar nuevo', exact: true })
     .click();

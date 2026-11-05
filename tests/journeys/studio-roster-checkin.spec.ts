@@ -62,7 +62,7 @@ test.describe('@journey studio roster check-in', () => {
 
     await enrollment.getByRole('button', { name: 'Registrar pago' }).click();
     await expect(
-      page.getByRole('heading', { name: '¿Registrar pago de la clase?' }),
+      page.getByRole('heading', { name: /¿Saldar pago de la clase\?/i }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Aceptar' }).click();
 

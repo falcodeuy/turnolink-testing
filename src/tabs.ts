@@ -25,6 +25,12 @@ export async function clickTabUntilReady(
   await page.keyboard.press('Escape');
   await tab.scrollIntoViewIfNeeded();
   await expect(tab).toBeEnabled();
-  await tab.click();
-  await expect.poll(isReady, { timeout: timeoutMs }).toBe(true);
+  await expect
+    .poll(async () => {
+      if (await isReady()) return true;
+      await dismissNextjsPortalIfPresent(page);
+      await tab.click();
+      return isReady();
+    }, { timeout: timeoutMs })
+    .toBe(true);
 }

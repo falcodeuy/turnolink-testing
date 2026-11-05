@@ -37,7 +37,7 @@ test.describe('@journey studio cuotas pendientes pay', () => {
       .getByRole('checkbox', { name: /^Marcar .+ paga$/i })
       .click();
     await expect(
-      page.getByRole('heading', { name: /Liquidar cuota/i }),
+      page.getByRole('heading', { name: /¿Saldar pago de la cuota/i }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Aceptar' }).click();
 

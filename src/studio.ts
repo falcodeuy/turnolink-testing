@@ -61,7 +61,7 @@ export async function filterMemberships(
 
 async function confirmSettleDuesModal(page: Page): Promise<void> {
   await expect(
-    page.getByRole('heading', { name: /Liquidar cuota/i }),
+    page.getByRole('heading', { name: /¿Saldar pago de la cuota/i }),
   ).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Aceptar' }).click();
 }
