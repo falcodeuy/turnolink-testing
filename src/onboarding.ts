@@ -33,9 +33,12 @@ export type ScheduleBlock = {
 
 export type AttendanceMode = 'virtual' | 'home' | 'both';
 
+export type BusinessMode = 'appointments' | 'studio' | 'both';
+
 export type OnboardingFlowOptions = {
   companyName: string;
   attendance?: AttendanceMode;
+  businessMode?: BusinessMode;
   schedules?: ScheduleBlock[];
   skipServices?: boolean;
   /** Absolute paths or paths relative to `turnolink-testing/`. */
@@ -94,7 +97,7 @@ export function prepareE2eOnboardingUser(
   };
 }
 
-async function continueOnboarding(page: Page): Promise<void> {
+export async function continueOnboarding(page: Page): Promise<void> {
   const continueButton = page.getByRole('button', {
     name: 'Continuar',
     exact: true,
@@ -115,38 +118,88 @@ async function continueOnboarding(page: Page): Promise<void> {
   await continueButton.click({ force: true });
 }
 
+function businessModeRadio(businessMode: BusinessMode): RegExp {
+  if (businessMode === 'studio') return /Clases/;
+  if (businessMode === 'both') return /Ambos/;
+  return /Turnos \/ reservas/;
+}
+
+/** Fill profile fields and optionally continue to the next step. */
+export async function fillOnboardingProfile(
+  page: Page,
+  options: Pick<OnboardingFlowOptions, 'companyName' | 'attendance' | 'businessMode'> & {
+    continue?: boolean;
+  },
+): Promise<void> {
+  const attendance = options.attendance ?? 'virtual';
+  const businessMode = options.businessMode ?? 'appointments';
+
+  await expect(page).toHaveURL(/\/company\/profile/, { timeout: 60_000 });
+  await expect(
+    page.getByRole('heading', { name: /configura el perfil de tu negocio/i }),
+  ).toBeVisible();
+  await dismissHelpModalIfPresent(page);
+
+  const nameField = page.getByRole('textbox', {
+    name: /nombre de tu negocio/i,
+  });
+  await nameField.fill(options.companyName);
+  await page.getByRole('radio', { name: businessModeRadio(businessMode) }).check();
+
+  if (attendance === 'home' || attendance === 'both') {
+    await page.getByRole('checkbox', { name: 'Atiendo a domicilio' }).check();
+  }
+  if (attendance === 'virtual' || attendance === 'both') {
+    await page.getByRole('checkbox', { name: 'Atiendo virtual' }).check();
+  }
+
+  if (options.continue !== false) {
+    await expect(
+      page.getByRole('button', { name: 'Continuar', exact: true }),
+    ).toBeEnabled({ timeout: 15_000 });
+    await continueOnboarding(page);
+  }
+}
+
 async function pickDigitalClockTime(
   page: Page,
   textboxIndex: number,
   hourOption: string,
   minuteOption = '0 minutos',
 ): Promise<void> {
-  // TimeInput aria-label is "Apertura/Cierre horario <id>" (or plain Apertura/Cierre / hh:mm).
+  // SetSchedule: "Apertura/Cierre franja N combinación M" (also legacy / hh:mm).
   const field = page
     .getByRole('textbox', {
-      name: /^(Apertura|Cierre)( franja 2)?( horario .+)?$|^hh:mm$/,
+      name: /^(Apertura|Cierre)( franja \d+)?( (horario|combinación) .+)?$|^hh:mm$/,
     })
     .nth(textboxIndex);
   await field.click();
-  await page.getByRole('option', { name: hourOption, exact: true }).click();
+  // Two open clocks can linger in the DOM; always target the newest options.
+  await page
+    .getByRole('option', { name: hourOption, exact: true })
+    .last()
+    .click();
 
-  const minute = page.getByRole('option', { name: minuteOption, exact: true });
-  if (await minute.isVisible().catch(() => false)) {
-    await minute.click();
+  const minute = page.getByRole('option', {
+    name: minuteOption,
+    exact: true,
+  });
+  if (await minute.last().isVisible().catch(() => false)) {
+    await minute.last().click();
   }
 
   const ok = page.getByRole('button', { name: 'OK' });
-  if (await ok.isVisible().catch(() => false)) {
-    await ok.click();
+  if (await ok.last().isVisible().catch(() => false)) {
+    await ok.last().click();
   }
 
   await expect(field).not.toHaveValue('');
 }
 
-/** Day buttons are labeled L/M/M/J/V/S/D; scope by schedule row (7 buttons each). */
+/** Day pills use aria-label Lunes…Domingo; 7 per combination card. */
 function scheduleDayButtons(page: Page) {
-  return page.locator('button').filter({
-    has: page.getByRole('heading', { level: 6 }),
+  return page.getByRole('button', {
+    name: /^(Lunes|Martes|Miércoles|Jueves|Viernes|Sábado|Domingo)$/,
   });
 }
 
@@ -162,7 +215,9 @@ async function fillScheduleBlocks(
     scheduleIndex++
   ) {
     if (scheduleIndex > 0) {
-      await page.getByRole('button', { name: 'Agregar horario' }).click();
+      await page
+        .getByRole('button', { name: 'Otra combinación de días' })
+        .click();
     }
 
     const block = schedules[scheduleIndex];
@@ -171,8 +226,10 @@ async function fillScheduleBlocks(
     textboxIndex += 2;
 
     if (block.secondRange) {
-      // Prior rows already swapped their "+" for remove; target the newest "+".
-      await page.getByRole('button', { name: 'add' }).last().click();
+      await page
+        .getByRole('button', { name: 'Agregar otro horario' })
+        .last()
+        .click();
       await pickDigitalClockTime(page, textboxIndex, block.secondRange.opening);
       await pickDigitalClockTime(
         page,
@@ -221,57 +278,35 @@ async function uploadOnboardingImages(
   }
 }
 
-/**
- * Onboarding after login: profile → schedule → services → final → panel.
- * Skips Mercado Pago / Google Calendar (OAuth).
- */
-export async function completeProfessionalOnboarding(
+/** Schedule → services (optional skip) for appointment-capable modes. */
+export async function completeOnboardingScheduleAndServices(
   page: Page,
-  options: OnboardingFlowOptions,
+  options: Pick<OnboardingFlowOptions, 'schedules' | 'skipServices'> = {},
 ): Promise<void> {
-  assertNotProductionWriteContext('complete professional onboarding');
-
-  const attendance = options.attendance ?? 'virtual';
   const schedules = options.schedules ?? DEFAULT_SCHEDULE;
   const skipServices = options.skipServices ?? true;
 
-  await expect(page).toHaveURL(/\/company\/profile/, { timeout: 60_000 });
-  await expect(
-    page.getByRole('heading', { name: /configura el perfil de tu negocio/i }),
-  ).toBeVisible();
-
-  await dismissHelpModalIfPresent(page);
-
-  await page.locator('#name').fill(options.companyName);
-
-  if (attendance === 'home' || attendance === 'both') {
-    await page.getByRole('checkbox', { name: 'Atiendo a domicilio' }).check();
-  }
-  if (attendance === 'virtual' || attendance === 'both') {
-    await page.getByRole('checkbox', { name: 'Atiendo virtual' }).check();
-  }
-
-  await continueOnboarding(page);
-
   await expect(page).toHaveURL(/\/company\/schedule/, { timeout: 60_000 });
-  await expect(
-    page.getByRole('heading', { name: /^horarios$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^horarios$/i })).toBeVisible();
   await dismissHelpModalIfPresent(page);
 
   await fillScheduleBlocks(page, schedules);
   await continueOnboarding(page);
 
   await expect(page).toHaveURL(/\/company\/services/, { timeout: 60_000 });
-  await expect(
-    page.getByRole('heading', { name: /^servicios$/i }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^servicios$/i })).toBeVisible();
   await dismissHelpModalIfPresent(page);
 
   if (skipServices) {
     await page.getByRole('button', { name: 'Omitir paso' }).click();
   }
+}
 
+/** Final configuration → success → dashboard. */
+export async function completeOnboardingFinal(
+  page: Page,
+  options: Pick<OnboardingFlowOptions, 'images'> = {},
+): Promise<void> {
   await expect(page).toHaveURL(/\/company\/final-configuration/, {
     timeout: 60_000,
   });
@@ -293,6 +328,32 @@ export async function completeProfessionalOnboarding(
   await dismissReferralNudgeIfPresent(page);
 }
 
+/**
+ * Onboarding after login: profile → schedule → services → final → panel.
+ * Skips Mercado Pago / Google Calendar (OAuth).
+ */
+export async function completeProfessionalOnboarding(
+  page: Page,
+  options: OnboardingFlowOptions,
+): Promise<void> {
+  assertNotProductionWriteContext('complete professional onboarding');
+
+  const businessMode = options.businessMode ?? 'appointments';
+  const offersAppointments = businessMode !== 'studio';
+
+  await fillOnboardingProfile(page, {
+    companyName: options.companyName,
+    attendance: options.attendance,
+    businessMode,
+  });
+
+  if (offersAppointments) {
+    await completeOnboardingScheduleAndServices(page, options);
+  }
+
+  await completeOnboardingFinal(page, options);
+}
+
 export async function runOnboardingJourney(
   page: Page,
   credentials: ProfessionalCredentials,
@@ -302,12 +363,21 @@ export async function runOnboardingJourney(
   await completeProfessionalOnboarding(page, options);
 }
 
-export async function expectOnboardingDashboard(page: Page): Promise<void> {
+export async function expectOnboardingDashboard(
+  page: Page,
+  options: { businessMode?: BusinessMode } = {},
+): Promise<void> {
+  const businessMode = options.businessMode ?? 'appointments';
   await dismissReferralNudgeIfPresent(page);
   // Mobile/tablet: sidebar links live in the drawer behind the menu button.
   await openProfessionalMobileNavIfNeeded(page);
   await expect(
     page.getByRole('link', { name: /Panel principal|Escritorio/ }),
   ).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('link', { name: 'Reservas' })).toBeVisible();
+  if (businessMode !== 'studio') {
+    await expect(page.getByRole('link', { name: 'Reservas' })).toBeVisible();
+  }
+  if (businessMode === 'studio' || businessMode === 'both') {
+    await expect(page.getByRole('link', { name: 'Clases' })).toBeVisible();
+  }
 }

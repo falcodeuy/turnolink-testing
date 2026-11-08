@@ -5,13 +5,14 @@ export type ProfessionalUser = {
   email: string;
   name?: string;
   onboarding_ready?: boolean;
-  last_onboarding_step?: number;
+  last_onboarding_step?: string | number;
   company?: {
     id?: number;
     name?: string;
     slug?: string;
     logo?: string;
     banner?: string;
+    business_mode?: 'appointments' | 'studio' | 'both';
   } | null;
   [key: string]: unknown;
 };
