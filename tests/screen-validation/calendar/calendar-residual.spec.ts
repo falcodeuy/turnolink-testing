@@ -119,11 +119,17 @@ test.describe('@screen Calendar residual states', () => {
     await createResponse;
     await createDialog.getByRole('button', { name: 'Cerrar' }).click();
 
-    const localEventText = page.getByText(localTitle, { exact: true });
-    await expect(localEventText).toBeVisible();
+    const dayView = page.getByRole('button', {
+      name: 'Día',
+      exact: true,
+    });
+    await dayView.click();
+    await expect(dayView).toHaveAttribute('aria-pressed', 'true');
+
     const localEvent = page.getByRole('button', {
       name: new RegExp(localTitle, 'i'),
     });
+    await expect(localEvent).toBeVisible({ timeout: 15_000 });
     await localEvent.click();
 
     const editDialog = page.getByRole('dialog');

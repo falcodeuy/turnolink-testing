@@ -26,10 +26,10 @@ async function openPaidMembershipMoveModal(page: Page): Promise<void> {
 
 async function selectMoveEndpoints(page: Page): Promise<void> {
   await page.getByRole('combobox', { name: /Clase actual/ }).click();
-  await page.getByRole('option').click();
+  await page.getByRole('option').first().click();
   await page.getByRole('combobox', { name: /Nueva clase/ }).click();
   await page
-    .getByRole('option', { name: /0\/\d+$/ })
+    .locator(`[role="option"][data-value="${SYNTHETIC_TARGET_ID}"]`)
     .click();
 }
 

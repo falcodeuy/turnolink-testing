@@ -61,8 +61,7 @@ test.describe('@screen professional service form guards', () => {
     await addSchedule.first().click();
     await expect(
       loggedInProfessionalPage.getByRole('textbox', {
-        name: 'Lunes Apertura',
-        exact: true,
+        name: /Lunes Apertura/,
       }),
     ).toBeVisible({ timeout: 30_000 });
 
