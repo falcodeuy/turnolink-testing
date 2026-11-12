@@ -4,7 +4,8 @@ import { attachReactConsoleGuard } from '../../src/consoleGuard';
 import { dismissNonEssentialOverlays } from '../../src/overlays';
 
 const routes = [
-  { path: '/portal/studio', heading: 'Clases' },
+  { path: '/portal/studio', heading: 'Membresías' },
+  { path: '/portal/studio?tab=classes', heading: 'Clases' },
   { path: '/portal/studio?tab=schedule', heading: 'Horario de clases' },
   { path: '/portal/studio?tab=plans', heading: 'Planes' },
   { path: '/portal/studio?tab=memberships', heading: 'Membresías' },

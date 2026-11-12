@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import {
   selectFirstAvailableDay,
   selectFirstOpenClassSlot,
+  selectPublicCatalogCard,
 } from './booking';
 import {
   openPublicDropInAvailabilityMidpoint,
@@ -32,12 +33,12 @@ export async function selectPackageSessionsMidpoint(
   sessionCount = 2,
 ): Promise<string[]> {
   await openPublicServicesMidpoint(page);
-  await page
-    .getByRole('button', { name: `Paquete: ${sessionCount} sesiones` })
-    .click();
-  await expect(page).toHaveURL(/\/services\/availability\/?$/, {
-    timeout: 60_000,
-  });
+  await selectPublicCatalogCard(
+    page,
+    `Paquete: ${sessionCount} sesiones`,
+    /\/services\/availability\/?$/,
+    `${sessionCount} sesiones`,
+  );
 
   const summaries: string[] = [];
   for (let session = 1; session <= sessionCount; session += 1) {

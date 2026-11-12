@@ -84,3 +84,20 @@ export async function clickUntilUrl(
     control.click(),
   ]);
 }
+
+/** Search then click — survives a worker catalog polluted by create journeys. */
+export async function selectPublicCatalogCard(
+  page: Page,
+  cardName: string,
+  expectedPath: RegExp,
+  searchQuery: string,
+): Promise<void> {
+  const search = page.getByRole('searchbox', { name: 'Buscar servicio' });
+  await expect(search).toBeVisible({ timeout: 60_000 });
+  await search.fill(searchQuery);
+  await clickUntilUrl(
+    page,
+    page.getByRole('button', { name: cardName, exact: true }),
+    expectedPath,
+  );
+}

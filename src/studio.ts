@@ -27,8 +27,8 @@ export async function openStudioTab(
   assertNotProductionWriteContext('open Estudio panel');
   await loginProfessionalViaApi(page);
 
-  const query =
-    tab === 'classes' ? '' : `?tab=${tab === 'schedule' ? 'schedule' : tab}`;
+  // Default landing tab (no ?tab) is Membresías when the user can manage billing.
+  const query = tab === 'memberships' ? '' : `?tab=${tab}`;
   await page.goto(`${apps.professional()}/portal/studio${query}`, {
     waitUntil: 'domcontentloaded',
   });
@@ -45,7 +45,7 @@ export async function openStudioTab(
   // Studio tab strip first — Memberships also has an inner "Membresías" tab.
   const studioTab = page.getByRole('tab', { name: tabLabel }).first();
   await expect(studioTab).toBeVisible({ timeout: 60_000 });
-  if (tab !== 'classes') {
+  if (tab !== 'memberships') {
     await studioTab.click();
   }
 }

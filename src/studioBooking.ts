@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { apps } from './apps';
 import {
@@ -6,6 +6,7 @@ import {
   fillPreviewAndConfirm,
   selectFirstAvailableDay,
   selectFirstOpenClassSlot,
+  selectPublicCatalogCard,
   type PublicBookingInput,
   type PublicBookingResult,
   type PublicConfirmationKind,
@@ -15,19 +16,6 @@ import { assertNotProductionWriteContext } from './safety';
 
 function studioServicesUrl(): string {
   return `${apps.public()}/${e2eCompanySlug()}/services`;
-}
-
-async function clickAndWaitForUrl(
-  page: Page,
-  control: Locator,
-  expectedPath: RegExp,
-): Promise<void> {
-  await expect(control).toBeVisible({ timeout: 60_000 });
-  await expect(control).toBeEnabled({ timeout: 60_000 });
-  await Promise.all([
-    page.waitForURL(expectedPath, { timeout: 60_000 }),
-    control.click(),
-  ]);
 }
 
 async function chooseStudioOwner(
@@ -64,10 +52,12 @@ export async function bookDropInClassOnPublicWeb(
   await page.goto(studioServicesUrl(), { waitUntil: 'domcontentloaded' });
   await dismissNextjsPortalIfPresent(page);
 
-  const card = page.getByRole('button', {
-    name: `Clase suelta: ${classTypeName}`,
-  });
-  await clickAndWaitForUrl(page, card, /\/services\/class-employees\/?$/);
+  await selectPublicCatalogCard(
+    page,
+    `Clase suelta: ${classTypeName}`,
+    /\/services\/class-employees\/?$/,
+    classTypeName,
+  );
   await chooseStudioOwner(page, /\/services\/class-employees\/?$/);
   await expect(page).toHaveURL(/\/services\/class-availability\/?$/, {
     timeout: 60_000,
@@ -100,11 +90,11 @@ export async function bookMembershipOnPublicWeb(
   await page.goto(studioServicesUrl(), { waitUntil: 'domcontentloaded' });
   await dismissNextjsPortalIfPresent(page);
 
-  const card = page.getByRole('button', { name: `Membresía: ${planName}` });
-  await clickAndWaitForUrl(
+  await selectPublicCatalogCard(
     page,
-    card,
+    `Membresía: ${planName}`,
     /\/services\/membership-employees\/?$/,
+    planName,
   );
   await chooseStudioOwner(page, /\/services\/membership-employees\/?$/);
   await expect(page).toHaveURL(/\/services\/membership\/?$/, {

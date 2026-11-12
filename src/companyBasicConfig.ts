@@ -19,6 +19,22 @@ export type CompanyBasicData = {
   primaryColor?: string;
 };
 
+async function setEmployeeSelectionToggle(
+  page: Page,
+  showEmployeeSelection: boolean,
+): Promise<void> {
+  await gotoConfiguration(page, 'Reservas Online');
+  const toggle = page.getByRole('checkbox', {
+    name: /Selección de empleados/i,
+  });
+  await expect(toggle).toBeVisible({ timeout: 30_000 });
+  const checked = await toggle.isChecked();
+  if (checked !== showEmployeeSelection) {
+    await toggle.click();
+  }
+  await expect(toggle).toBeChecked({ checked: showEmployeeSelection });
+}
+
 export async function updateCompanyBasicDataInPanel(
   page: Page,
   data: CompanyBasicData,
@@ -26,70 +42,71 @@ export async function updateCompanyBasicDataInPanel(
   assertNotProductionWriteContext('update company basic data');
 
   await loginProfessionalViaApi(page);
-  await gotoConfiguration(page, 'Datos básicos');
-  await expect(page.locator('#companyName')).toHaveValue(/./, {
-    timeout: 60_000,
-  });
-  await expect(page.locator('#slug')).toHaveValue(/./, { timeout: 30_000 });
 
-  if (data.description !== undefined) {
-    await fillControlledField(page, 'description', data.description);
-  }
-  if (data.website !== undefined) {
-    await fillControlledField(page, 'website', data.website);
-  }
-  if (data.instagramUrl !== undefined) {
-    await fillControlledField(page, 'instagramUrl', data.instagramUrl);
-  }
-  if (data.showEmployeeSelection !== undefined) {
-    const toggle = page.getByRole('checkbox', {
-      name: /Mostrar selección de empleados/i,
+  const hasBasicFields =
+    data.description !== undefined ||
+    data.website !== undefined ||
+    data.instagramUrl !== undefined ||
+    data.primaryColor !== undefined;
+
+  if (hasBasicFields) {
+    await gotoConfiguration(page, 'Datos básicos');
+    await expect(page.locator('#companyName')).toHaveValue(/./, {
+      timeout: 60_000,
     });
-    await expect(toggle).toBeVisible({ timeout: 30_000 });
-    const checked = await toggle.isChecked();
-    if (checked !== data.showEmployeeSelection) {
-      await toggle.click();
+    await expect(page.locator('#slug')).toHaveValue(/./, { timeout: 30_000 });
+
+    if (data.description !== undefined) {
+      await fillControlledField(page, 'description', data.description);
     }
-    await expect(toggle).toBeChecked({ checked: data.showEmployeeSelection });
-  }
-  if (data.primaryColor !== undefined) {
-    const colorField = page.getByRole('textbox', { name: 'Color de marca' });
-    await expect(colorField).toBeVisible({ timeout: 30_000 });
-    await colorField.click();
-    await colorField.fill('');
-    await colorField.pressSequentially(data.primaryColor, { delay: 10 });
-    await expect(colorField).toHaveValue(data.primaryColor);
+    if (data.website !== undefined) {
+      await fillControlledField(page, 'website', data.website);
+    }
+    if (data.instagramUrl !== undefined) {
+      await fillControlledField(page, 'instagramUrl', data.instagramUrl);
+    }
+    if (data.primaryColor !== undefined) {
+      const colorField = page.getByRole('textbox', { name: 'Color de marca' });
+      await expect(colorField).toBeVisible({ timeout: 30_000 });
+      await colorField.click();
+      await colorField.fill('');
+      await colorField.pressSequentially(data.primaryColor, { delay: 10 });
+      await expect(colorField).toHaveValue(data.primaryColor);
+    }
+
+    const bodyIncludes = [
+      data.description,
+      data.website,
+      data.instagramUrl,
+      data.primaryColor,
+    ].filter((value): value is string => Boolean(value));
+
+    await saveCompanyPatch(page, bodyIncludes);
+
+    if (data.description !== undefined) {
+      await expect(page.locator('#description')).toHaveValue(data.description, {
+        timeout: 30_000,
+      });
+    }
+    if (data.website !== undefined) {
+      await expect(page.locator('#website')).toHaveValue(data.website);
+    }
+    if (data.instagramUrl !== undefined) {
+      await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
+    }
+    if (data.primaryColor !== undefined) {
+      await expect(
+        page.getByRole('textbox', { name: 'Color de marca' }),
+      ).toHaveValue(data.primaryColor);
+    }
   }
 
-  const bodyIncludes = [
-    data.description,
-    data.website,
-    data.instagramUrl,
-    data.primaryColor,
-  ].filter((value): value is string => Boolean(value));
-
-  await saveCompanyPatch(page, bodyIncludes);
-
-  if (data.description !== undefined) {
-    await expect(page.locator('#description')).toHaveValue(data.description, {
-      timeout: 30_000,
-    });
-  }
-  if (data.website !== undefined) {
-    await expect(page.locator('#website')).toHaveValue(data.website);
-  }
-  if (data.instagramUrl !== undefined) {
-    await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
-  }
   if (data.showEmployeeSelection !== undefined) {
+    await setEmployeeSelectionToggle(page, data.showEmployeeSelection);
+    await saveCompanyPatch(page);
     await expect(
-      page.getByRole('checkbox', { name: /Mostrar selección de empleados/i }),
+      page.getByRole('checkbox', { name: /Selección de empleados/i }),
     ).toBeChecked({ checked: data.showEmployeeSelection });
-  }
-  if (data.primaryColor !== undefined) {
-    await expect(
-      page.getByRole('textbox', { name: 'Color de marca' }),
-    ).toHaveValue(data.primaryColor);
   }
 }
 
@@ -97,31 +114,41 @@ export async function expectCompanyBasicDataInPanel(
   page: Page,
   data: CompanyBasicData,
 ): Promise<void> {
-  await gotoConfiguration(page, 'Datos básicos');
-  await expect(page.locator('#companyName')).toHaveValue(/./, {
-    timeout: 60_000,
-  });
+  const hasBasicFields =
+    data.description !== undefined ||
+    data.website !== undefined ||
+    data.instagramUrl !== undefined ||
+    data.primaryColor !== undefined;
 
-  if (data.description !== undefined) {
-    await expect(page.locator('#description')).toHaveValue(data.description, {
-      timeout: 30_000,
+  if (hasBasicFields) {
+    await gotoConfiguration(page, 'Datos básicos');
+    await expect(page.locator('#companyName')).toHaveValue(/./, {
+      timeout: 60_000,
     });
+
+    if (data.description !== undefined) {
+      await expect(page.locator('#description')).toHaveValue(data.description, {
+        timeout: 30_000,
+      });
+    }
+    if (data.website !== undefined) {
+      await expect(page.locator('#website')).toHaveValue(data.website);
+    }
+    if (data.instagramUrl !== undefined) {
+      await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
+    }
+    if (data.primaryColor !== undefined) {
+      await expect(
+        page.getByRole('textbox', { name: 'Color de marca' }),
+      ).toHaveValue(data.primaryColor);
+    }
   }
-  if (data.website !== undefined) {
-    await expect(page.locator('#website')).toHaveValue(data.website);
-  }
-  if (data.instagramUrl !== undefined) {
-    await expect(page.locator('#instagramUrl')).toHaveValue(data.instagramUrl);
-  }
+
   if (data.showEmployeeSelection !== undefined) {
+    await gotoConfiguration(page, 'Reservas Online');
     await expect(
-      page.getByRole('checkbox', { name: /Mostrar selección de empleados/i }),
+      page.getByRole('checkbox', { name: /Selección de empleados/i }),
     ).toBeChecked({ checked: data.showEmployeeSelection });
-  }
-  if (data.primaryColor !== undefined) {
-    await expect(
-      page.getByRole('textbox', { name: 'Color de marca' }),
-    ).toHaveValue(data.primaryColor);
   }
 }
 

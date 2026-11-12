@@ -30,7 +30,9 @@ async function selectClient(page: Page, client: Client): Promise<void> {
     name: 'Escribí al menos 2 letras…',
   });
   await search.fill(client.name);
-  await page.getByRole('button', { name: client.name, exact: true }).click();
+  await page
+    .getByRole('button', { name: new RegExp(`^${client.name}`) })
+    .click();
 }
 
 test.describe('@screen studio occurrence roster', () => {

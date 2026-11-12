@@ -34,8 +34,10 @@ test.describe('@screen Studio', () => {
       name: /Permitir anotarse sin membresía/i,
     });
     await dropIn.check();
+    await expect(page.locator('#classTypeDropInTitle')).toBeVisible();
     await expect(page.locator('#classTypeDropInPrice')).toBeVisible();
     await dropIn.uncheck();
+    await expect(page.locator('#classTypeDropInTitle')).toHaveCount(0);
     await expect(page.locator('#classTypeDropInPrice')).toHaveCount(0);
 
     const needsRoom = page.getByRole('checkbox', {
@@ -121,6 +123,19 @@ test.describe('@screen Studio', () => {
     await horizon.click();
     await page.getByRole('option', { name: 'Mismo mes' }).click();
     await expect(page.locator('#planHorizonDays')).toHaveCount(0);
+
+    await page.getByRole('button', { name: /Cancelar|Cerrar/i }).click();
+    await page
+      .getByRole('button', {
+        name: `Editar ${STUDIO_FIXTURES.planName}`,
+      })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Editar plan' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/cuotas de meses que todavía no se generaron/i),
+    ).toBeVisible();
   });
 
   test('membership save requires the plan exact number of standing schedules', async ({
@@ -133,11 +148,27 @@ test.describe('@screen Studio', () => {
 
     await openStudioTab(page, 'memberships');
     await page.getByRole('button', { name: 'Nueva membresía' }).click();
+    await expect(
+      page.getByRole('button', { name: 'Agregar cliente' }),
+    ).toBeVisible();
     await page.locator('#membership-client').fill('E2E Alumna');
     await page
       .getByRole('button', {
-        name: STUDIO_FIXTURES.paidMemberName,
-        exact: true,
+        name: new RegExp(`^${STUDIO_FIXTURES.paidMemberName}`),
+      })
+      .click();
+    await expect(page.locator('#membership-client')).toHaveValue(
+      STUDIO_FIXTURES.paidMemberName,
+    );
+
+    await page.getByRole('button', { name: /Cancelar|Cerrar/i }).click();
+    await page.getByRole('button', { name: 'Nueva membresía' }).click();
+    await expect(page.locator('#membership-client')).toHaveValue('');
+
+    await page.locator('#membership-client').fill('E2E Alumna');
+    await page
+      .getByRole('button', {
+        name: new RegExp(`^${STUDIO_FIXTURES.paidMemberName}`),
       })
       .click();
 

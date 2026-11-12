@@ -11,8 +11,10 @@ export {
   selectFirstOpenClassSlot,
 } from './bookingAvailability';
 export {
+  clickUntilUrl,
   e2eCompanySlug,
   reachAppointmentAvailability,
+  selectPublicCatalogCard,
   type PublicBookingInput,
   type PublicBookingResult,
 } from './bookingCore';

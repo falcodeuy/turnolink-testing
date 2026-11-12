@@ -191,9 +191,7 @@ test.describe('@screen Calendar residual states', () => {
         name: /Editar reserva|Información de la reserva/i,
       }),
     ).toBeVisible();
-    await expect(
-      dialog.getByRole('combobox', { name: '', exact: true }),
-    ).toHaveValue(clientName);
+    await expect(dialog.locator('#clients')).toHaveValue(clientName);
     await expect(
       dialog.getByRole('combobox', { name: 'Servicios' }),
     ).not.toHaveText('');

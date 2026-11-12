@@ -15,15 +15,13 @@ export type CompanyDayHours = {
 
 function dayOpeningField(page: Page, dayLabel: string) {
   return page.getByRole('textbox', {
-    name: `${dayLabel} Apertura`,
-    exact: true,
+    name: new RegExp(`^${dayLabel} Apertura`),
   });
 }
 
 function dayClosingField(page: Page, dayLabel: string) {
   return page.getByRole('textbox', {
-    name: `${dayLabel} Cierre`,
-    exact: true,
+    name: new RegExp(`^${dayLabel} Cierre`),
   });
 }
 

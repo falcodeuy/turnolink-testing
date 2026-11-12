@@ -5,6 +5,7 @@ import {
   e2eCompanySlug,
   navigateToBookingPreview,
   selectFirstAvailableDay,
+  selectPublicCatalogCard,
 } from './booking';
 import { gotoConfiguration } from './companyConfig';
 import { prepareE2eScenarioForSlug } from './djangoManage';
@@ -82,10 +83,12 @@ export async function openPublicDropInEmployeesMidpoint(
   page: Page,
 ): Promise<void> {
   await openPublicServicesMidpoint(page);
-  await page.getByRole('button', { name: 'Clase suelta: E2E Pilates' }).click();
-  await expect(page).toHaveURL(/\/services\/class-employees\/?$/, {
-    timeout: 60_000,
-  });
+  await selectPublicCatalogCard(
+    page,
+    'Clase suelta: E2E Pilates',
+    /\/services\/class-employees\/?$/,
+    'E2E Pilates',
+  );
   await expect(
     page.getByRole('heading', { name: 'Elegí profesional' }),
   ).toBeVisible();
@@ -116,10 +119,12 @@ export async function openPublicMembershipEmployeesMidpoint(
   page: Page,
 ): Promise<void> {
   await openPublicServicesMidpoint(page);
-  await page.getByRole('button', { name: 'Membresía: E2E 2x semana' }).click();
-  await expect(page).toHaveURL(/\/services\/membership-employees\/?$/, {
-    timeout: 60_000,
-  });
+  await selectPublicCatalogCard(
+    page,
+    'Membresía: E2E 2x semana',
+    /\/services\/membership-employees\/?$/,
+    'E2E 2x semana',
+  );
   await expect(
     page.getByRole('heading', { name: 'Elegí profesional' }),
   ).toBeVisible();
